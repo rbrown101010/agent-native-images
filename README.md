@@ -8,6 +8,8 @@ Built with Electron and plain JavaScript. No web server, framework build, accoun
 
 - **⌘⇧Space** shows or hides the launcher. Change it in Settings if another app already uses it.
 - **⌘T** opens a search tab immediately. Other tabs keep loading in the background.
+- Type `monkey; banana; jungle` and press **Enter** to launch each search in a separate tab. Empty fields and repeated queries are skipped. Up to 24 searches per batch.
+- Describe the visuals you need and click **AI search**. A lightweight GPT-4.1 nano model returns only a semicolon-separated list, which immediately launches as parallel searches (up to 12). Manual searches never call AI.
 - Search all images, transparent images, or icons. Every image fits fully inside its cell without cropping.
 - Hover an image for **Copy**, **Save**, or **Remove BG**. The same actions appear in the full preview.
 - **Copy** places a real PNG image on the native clipboard and adds it to Saved.
@@ -41,9 +43,11 @@ npm ci
 npm start
 ```
 
+For AI search, add an [AI Gateway](https://vercel.com/ai-gateway) key in Settings. The model defaults to `openai/gpt-4.1-nano`; set `AI_MODEL` when launching to override it. Launching once with `AI_GATEWAY_API_KEY` saves that key in encrypted local storage for future launches.
+
 Enter your own [Serper](https://serper.dev/) and [remove.bg](https://www.remove.bg/api) API keys in Settings. Both services may charge for use. Keys are encrypted locally using Electron safeStorage backed by the macOS Keychain. They never go into renderer code or this repository.
 
-Searches go to Serper. Source images are fetched from their original host when copied, saved, or processed. Background removal uploads the selected image to remove.bg. Some image hosts block downloads; the app reports that failure rather than silently substituting a lower-resolution thumbnail. Unsupported source formats also produce a clear error.
+AI search descriptions go to Vercel AI Gateway. Image searches go to Serper. Source images are fetched from their original host when copied, saved, or processed. Background removal uploads the selected image to remove.bg. Some image hosts block downloads; the app reports that failure rather than silently substituting a lower-resolution thumbnail. Unsupported source formats also produce a clear error.
 
 Local data lives in `~/Library/Application Support/Agent Native Images/`. Keep that directory private: it contains your library, search session, image cache, and encrypted credentials.
 
@@ -59,7 +63,10 @@ The Apple Silicon app is created at `release/Agent Native Images-darwin-arm64/Ag
 
 ```sh
 npm test
+npm run test:batch
 ```
+
+The batch desktop test checks parallel tab creation, card layout, and AI completion/cancellation using mocked providers, without API charges.
 
 The library test covers concurrent naming, duplicate copy/save actions, persistence, and preserving existing Downloads files.
 
@@ -74,6 +81,7 @@ Add `TEST_REMOVE_BG=1` to also test background removal and consume a remove.bg c
 ## Implementation
 
 - `main.cjs`: native window, global shortcut, API requests, clipboard, secure credentials, and restricted IPC.
+- `ai-search.cjs`: lightweight AI query planning with a strict semicolon-only prompt.
 - `library.cjs`: serialized library writes, collision-safe filenames, and Downloads.
 - `preload.cjs`: narrow context-isolated renderer bridge.
 - `renderer/`: the local interface. All remote text is inserted as text, not HTML.

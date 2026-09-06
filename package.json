@@ -1,17 +1,20 @@
 {
   "name": "agent-native-images",
   "productName": "Agent Native Images",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A fast image launcher for Agent Native",
   "private": true,
-  "engines": { "node": ">=22.12.0" },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "main": "main.cjs",
   "scripts": {
     "postinstall": "install-electron",
     "start": "electron .",
     "test": "node --test test/*.test.cjs",
     "test:desktop": "node test/desktop.cjs",
-    "package": "electron-packager . 'Agent Native Images' --platform=darwin --arch=arm64 --out=release --overwrite --app-bundle-id=inc.agentnative.images --icon=assets/icon.icns --ignore='^/(test|release|README.md)'"
+    "package": "electron-packager . 'Agent Native Images' --platform=darwin --arch=arm64 --out=release --overwrite --app-bundle-id=inc.agentnative.images --icon=assets/icon.icns --ignore='^/(test|release|README.md)'",
+    "test:batch": "node test/batch-desktop.cjs"
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",

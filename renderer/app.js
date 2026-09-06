@@ -17,16 +17,16 @@ const paths = {
 function icon(name) { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.image}</svg>`; }
 function element(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; }
 function button(label, iconName, callback, className = '') { const node = element('button', className); node.type = 'button'; if (iconName) node.innerHTML = icon(iconName); if (label) node.append(document.createTextNode(label)); node.addEventListener('click', callback); return node; }
-function freshTab() { return { id: crypto.randomUUID(), query: '', draft: '', kind: 'all', items: [], page: 0, loading: false, error: '', token: '', hasMore: false }; }
+function freshTab() { return { id: crypto.randomUUID(), query: '', draft: '', kind: 'all', items: [], page: 0, loading: false, planning: false, planToken: '', error: '', token: '', hasMore: false }; }
 let tabs = [freshTab()], activeId = tabs[0].id, saved = [], savedQuery = '', recent = [], preview = null, toastTimer;
 const busy = new Map();
 try {
   const state = JSON.parse(localStorage.getItem('image-session'));
-  if (state?.tabs?.length) { tabs = state.tabs.map(tab => ({ ...tab, loading: false, error: '', token: '' })); activeId = tabs.some(tab => tab.id === state.activeId) ? state.activeId : tabs[0].id; recent = state.recent || []; }
+  if (state?.tabs?.length) { tabs = state.tabs.map(tab => ({ ...tab, loading: false, planning: false, planToken: '', error: '', token: '' })); activeId = tabs.some(tab => tab.id === state.activeId) ? state.activeId : tabs[0].id; recent = state.recent || []; }
 } catch {}
 function current() { return tabs.find(tab => tab.id === activeId); }
 function persist() {
-  try { localStorage.setItem('image-session', JSON.stringify({ tabs: tabs.map(tab => ({ ...tab, items: tab.items.slice(0, 120), loading: false, token: '' })), activeId: activeId === 'saved' ? tabs[0].id : activeId, recent })); } catch {}
+  try { localStorage.setItem('image-session', JSON.stringify({ tabs: tabs.map(tab => ({ ...tab, items: tab.items.slice(0, 120), loading: false, planning: false, planToken: '', token: '' })), activeId: activeId === 'saved' ? tabs[0].id : activeId, recent })); } catch {}
 }
 function focusSearch(select = true) { const input = $('#search-input'); input.focus(); if (select) input.select(); }
 function toast(text, error = false) { clearTimeout(toastTimer); const node = $('#toast'); node.textContent = text; node.className = error ? 'error' : ''; node.hidden = false; toastTimer = setTimeout(() => { node.hidden = true; }, error ? 8000 : 2800); }
@@ -35,7 +35,7 @@ function renderTabs() {
   for (const tab of tabs) {
     const wrapper = element('div', `tab${tab.id === activeId ? ' active' : ''}`);
     const main = button('', null, () => selectTab(tab.id), 'tab-main'); main.setAttribute('role', 'tab'); main.setAttribute('aria-selected', String(tab.id === activeId)); main.setAttribute('aria-label', tab.query || 'New search');
-    const glyph = element('span', 'tab-icon'); glyph.innerHTML = tab.loading ? '<span class="spinner"></span>' : icon('search');
+    const glyph = element('span', 'tab-icon'); glyph.innerHTML = tab.loading || tab.planning ? '<span class="spinner"></span>' : icon('search');
     main.append(glyph, element('span', 'tab-name', tab.query || 'New search'));
     if (tab.unread) main.append(element('span', 'ready-dot'));
     const close = button('', 'close', () => closeTab(tab.id), 'close-tab'); close.setAttribute('aria-label', `Close ${tab.query || 'new search'}`);
@@ -60,6 +60,44 @@ function closeTab(id = activeId) {
   if (!tabs.length) tabs.push(freshTab());
   if (activeId === id) selectTab(tabs[Math.min(index, tabs.length - 1)].id); else { renderTabs(); persist(); }
 }
+function cancelPlan(tab) { tab.planToken = ''; tab.planning = false; }
+function launchQueries(tab, queries) {
+  if (!queries.length || !tabs.includes(tab)) return;
+  cancelPlan(tab);
+  const batch = queries.map((query, index) => {
+    const target = index === 0 ? tab : freshTab();
+    target.draft = query; target.kind = tab.kind;
+    return target;
+  });
+  tabs.splice(tabs.indexOf(tab) + 1, 0, ...batch.slice(1));
+  if (activeId === tab.id) $('#search-input').value = tab.draft;
+  // Create every tab before starting requests; each search resolves independently.
+  for (const target of batch) runSearch(target);
+  if (queries.length > 1) toast(`Searching ${queries.length} tabs`);
+}
+function submitSearch(tab = current()) {
+  if (!tab) return;
+  try {
+    const queries = window.searchQueries.parseQueries(tab.draft);
+    if (!queries.length) return focusSearch();
+    launchQueries(tab, queries);
+  } catch (error) { toast(error.message, true); }
+}
+async function aiSearch(tab = current()) {
+  if (!tab || tab.planning) return;
+  const prompt = tab.draft.trim();
+  if (!prompt) return focusSearch();
+  if (/[;；]/.test(prompt)) return submitSearch(tab);
+  const token = crypto.randomUUID(); tab.planToken = token; tab.planning = true; render();
+  try {
+    const output = await api.planSearches(prompt);
+    if (tab.planToken !== token || !tabs.includes(tab)) return;
+    const queries = window.searchQueries.parseQueries(output, 12);
+    if (!queries.length) throw new Error('No searches returned. Try another description.');
+    launchQueries(tab, queries);
+  } catch (error) { if (tab.planToken === token && tabs.includes(tab)) toast(error.message, true); }
+  finally { if (tab.planToken === token) cancelPlan(tab); render(); persist(); }
+}
 async function runSearch(tab, more = false) {
   const query = (more ? tab.query : tab.draft).trim();
   if (!query) return focusSearch();
@@ -81,14 +119,20 @@ function render() {
   renderTabs();
   const tab = current(); $('#filters').hidden = !tab;
   for (const filter of document.querySelectorAll('[data-kind]')) { const active = filter.dataset.kind === tab?.kind; filter.classList.toggle('active', active); filter.setAttribute('aria-pressed', String(active)); }
-  $('.search-submit').hidden = !tab;
+  $('#manual-search-button').hidden = !tab;
+  $('#ai-search-button').hidden = !tab;
+  $('#ai-search-button').disabled = Boolean(tab?.planning);
+  $('#ai-search-button').textContent = tab?.planning ? 'Thinking…' : 'AI search';
   renderContent();
 }
 function renderContent() {
   const content = $('#content'); const scroll = content.scrollTop; content.replaceChildren();
   const tab = current();
   const items = tab ? tab.items : saved.filter(item => `${item.name} ${item.query} ${item.title}`.toLowerCase().includes(savedQuery.toLowerCase()));
-  $('#result-count').textContent = tab?.loading ? 'Searching…' : items.length ? `${items.length} ${tab ? 'images' : 'saved'}${tab?.kind === 'all' ? ' · Google Images' : ''}` : '';
+  $('#result-count').textContent = tab?.planning ? 'Planning searches…' : tab?.loading ? 'Searching…' : items.length ? `${items.length} ${tab ? 'images' : 'saved'}${tab?.kind === 'all' ? ' · Google Images' : ''}` : '';
+  if (tab?.planning) {
+    const note = element('div', 'loading-note planning-note'); note.innerHTML = '<span class="spinner"></span>'; note.append(document.createTextNode('Turning your description into image searches…')); content.append(note);
+  }
   if (tab?.error) {
     const error = element('div', 'inline-error'); error.append(element('span', 'error-text', tab.error), button('Try again', null, () => runSearch(tab, tab.items.length > 0))); content.append(error);
   }
@@ -104,7 +148,7 @@ function renderContent() {
       empty = emptyState('Find your next visual.', 'Search images, grab an icon, or make a cutout.\nFrom idea to clipboard in seconds.');
       const suggestions = element('div', 'suggestions');
       for (const query of (recent.length ? recent.slice(0, 3) : ['Monkey', 'Chrome icon', 'Paper texture'])) suggestions.append(button(query, null, () => { tab.draft = query; $('#search-input').value = query; runSearch(tab); }));
-      empty.append(suggestions, element('div', 'empty-key', '⌘ T to search for something else in a new tab'));
+      empty.append(suggestions, element('div', 'batch-hint', 'monkey; banana; jungle → Enter to search all three'), element('div', 'empty-key', 'Or describe what you need and click AI search'));
     }
     content.append(empty); return;
   }
@@ -181,7 +225,7 @@ function setShortcutLabel(shortcut) { return shortcut.replace('CommandOrControl'
 async function openSettings() {
   try {
     const status = await api.status(); $('#shortcut-select').value = status.shortcut; $('#login-checkbox').checked = status.launchAtLogin;
-    for (const [name, configured] of [['serper', status.serper], ['removebg', status.removebg]]) { $(`#${name}-state`).textContent = configured ? 'Connected' : 'Not configured'; $(`#${name}-key`).value = ''; $(`#${name}-key`).placeholder = configured ? 'Saved securely · enter to replace' : 'Enter API key'; }
+    for (const [name, configured] of [['serper', status.serper], ['removebg', status.removebg], ['gateway', status.gateway]]) { $(`#${name}-state`).textContent = configured ? 'Connected' : 'Not configured'; $(`#${name}-key`).value = ''; $(`#${name}-key`).placeholder = configured ? 'Saved securely · enter to replace' : 'Enter API key'; }
     $('#settings-error').textContent = status.shortcutActive ? '' : 'The shortcut is unavailable. Choose another shortcut below.';
     $('#settings-dialog').showModal();
   } catch (error) { toast(error.message, true); }
@@ -191,12 +235,13 @@ $('#new-tab').addEventListener('click', newTab); $('#saved-tab').addEventListene
 $('#downloads-button').addEventListener('click', () => api.downloads().catch(error => toast(error.message, true)));
 $('#close-preview').addEventListener('click', () => { $('#preview-dialog').close(); preview = null; }); $('#preview-dialog').addEventListener('close', () => { preview = null; });
 $('#close-settings').addEventListener('click', () => $('#settings-dialog').close());
-$('#search-input').addEventListener('input', event => { if (current()) current().draft = event.target.value; else { savedQuery = event.target.value; renderContent(); } });
-$('#search-form').addEventListener('submit', event => { event.preventDefault(); if (current()) runSearch(current()); });
-$('#filters').addEventListener('click', event => { const node = event.target.closest('[data-kind]'); if (!node || !current()) return; const tab = current(); tab.kind = node.dataset.kind; if (tab.draft.trim()) runSearch(tab); else render(); });
+$('#search-input').addEventListener('input', event => { if (current()) { const tab = current(); tab.draft = event.target.value; if (tab.planning) { cancelPlan(tab); render(); } } else { savedQuery = event.target.value; renderContent(); } });
+$('#search-form').addEventListener('submit', event => { event.preventDefault(); submitSearch(); });
+$('#ai-search-button').addEventListener('click', () => aiSearch());
+$('#filters').addEventListener('click', event => { const node = event.target.closest('[data-kind]'); if (!node || !current()) return; const tab = current(); tab.kind = node.dataset.kind; if (tab.draft.trim()) submitSearch(tab); else render(); });
 $('#settings-form').addEventListener('submit', async event => {
   event.preventDefault(); const submit = $('#settings-form .primary-button'); submit.disabled = true; $('#settings-error').textContent = '';
-  try { const status = await api.configure({ serper: $('#serper-key').value, removebg: $('#removebg-key').value, shortcut: $('#shortcut-select').value, launchAtLogin: $('#login-checkbox').checked }); $('#shortcut-label').textContent = setShortcutLabel(status.shortcut); $('#settings-dialog').close(); $('#serper-key').value = ''; $('#removebg-key').value = ''; toast('Settings saved.'); } catch (error) { $('#settings-error').textContent = error.message; } finally { submit.disabled = false; }
+  try { const status = await api.configure({ serper: $('#serper-key').value, removebg: $('#removebg-key').value, gateway: $('#gateway-key').value, shortcut: $('#shortcut-select').value, launchAtLogin: $('#login-checkbox').checked }); $('#shortcut-label').textContent = setShortcutLabel(status.shortcut); $('#settings-dialog').close(); $('#serper-key').value = ''; $('#removebg-key').value = ''; $('#gateway-key').value = ''; toast('Settings saved.'); } catch (error) { $('#settings-error').textContent = error.message; } finally { submit.disabled = false; }
 });
 document.addEventListener('keydown', event => {
   if ($('#settings-dialog').open) return;

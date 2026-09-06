@@ -4,6 +4,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { randomUUID } = require('node:crypto');
 const { Library } = require('./library.cjs');
+const { planSearches, DEFAULT_MODEL } = require('./ai-search.cjs');
 
 app.setName('Agent Native Images');
 const testMode = process.argv.includes('--test-mode');
@@ -113,12 +114,12 @@ async function action({ type, item, query }) {
   return entry;
 }
 function status() {
-  return { serper: Boolean(secrets.serper), removebg: Boolean(secrets.removebg), ...preferences, shortcutActive, downloads: app.getPath('downloads') };
+  return { serper: Boolean(secrets.serper), removebg: Boolean(secrets.removebg), gateway: Boolean(secrets.gateway), aiModel: process.env.AI_MODEL || DEFAULT_MODEL, ...preferences, shortcutActive, downloads: app.getPath('downloads') };
 }
 async function saveSecrets(value) {
   if (!safeStorage.isEncryptionAvailable()) throw new Error('Keychain encryption is unavailable. Unlock your Mac and try again.');
   const next = { ...secrets };
-  for (const name of ['serper', 'removebg']) if (typeof value[name] === 'string' && value[name].trim()) next[name] = value[name].trim();
+  for (const name of ['serper', 'removebg', 'gateway']) if (typeof value[name] === 'string' && value[name].trim()) next[name] = value[name].trim();
   await fs.writeFile(secretPath + '.tmp', safeStorage.encryptString(JSON.stringify(next)), { mode: 0o600 });
   await fs.rename(secretPath + '.tmp', secretPath);
   secrets = next;
@@ -142,7 +143,7 @@ function registerShortcut(shortcut) {
   shortcutActive = true; preferences.shortcut = shortcut;
 }
 async function configure(value) {
-  if (value.serper || value.removebg) await saveSecrets(value);
+  if (value.serper || value.removebg || value.gateway) await saveSecrets(value);
   if (value.shortcut) registerShortcut(String(value.shortcut));
   if (typeof value.launchAtLogin === 'boolean') {
     if (!testMode) app.setLoginItemSettings({ openAtLogin: value.launchAtLogin, args: ['--hidden'] });
@@ -164,6 +165,7 @@ async function start() {
   await library.init();
   for (const entry of library.list()) assets.set(entry.id, entry);
   try { secrets = JSON.parse(safeStorage.decryptString(await fs.readFile(secretPath))); } catch (error) { if (error.code !== 'ENOENT') console.error('Credentials unavailable; re-enter keys in Settings.'); }
+  if (process.env.AI_GATEWAY_API_KEY && process.env.AI_GATEWAY_API_KEY !== secrets.gateway) await saveSecrets({ gateway: process.env.AI_GATEWAY_API_KEY });
   try { preferences = { ...preferences, ...JSON.parse(await fs.readFile(settingsPath, 'utf8')) }; } catch {}
   const importAt = process.argv.indexOf('--credentials-file');
   if (importAt >= 0) {
@@ -182,6 +184,7 @@ async function start() {
   window.webContents.on('will-navigate', event => event.preventDefault());
   window.on('close', event => { if (!quitting) { event.preventDefault(); window.hide(); } });
   handle('search', search); handle('action', action); handle('library', () => library.list());
+  handle('plan-searches', prompt => planSearches(prompt, { key: secrets.gateway, model: process.env.AI_MODEL || DEFAULT_MODEL }));
   handle('status', status); handle('configure', configure);
   handle('hide', () => window.hide());
   handle('downloads', () => shell.openPath(testMode ? path.join(root, 'Downloads') : app.getPath('downloads')));

@@ -6,7 +6,7 @@ const invoke = channel => async value => {
 };
 const on = channel => callback => { const listener = () => callback(); ipcRenderer.on(channel, listener); return () => ipcRenderer.removeListener(channel, listener); };
 contextBridge.exposeInMainWorld('images', {
-  search: invoke('search'), action: invoke('action'), library: invoke('library'), status: invoke('status'), configure: invoke('configure'),
+  search: invoke('search'), planSearches: invoke('plan-searches'), action: invoke('action'), library: invoke('library'), status: invoke('status'), configure: invoke('configure'),
   hide: invoke('hide'), downloads: invoke('downloads'), source: invoke('source'), forget: invoke('forget'), reveal: invoke('reveal'),
   onLibrary: on('library-changed'), onFocus: on('focus-search'), onSettings: on('open-settings'), onNewTab: on('new-tab'), onCloseTab: on('close-tab'),
 });
