@@ -22,12 +22,12 @@ const paths = {
 function icon(name) { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.image}</svg>`; }
 function element(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; }
 function button(label, iconName, callback, className = '') { const node = element('button', className); node.type = 'button'; if (iconName) node.innerHTML = icon(iconName); if (label) node.append(document.createTextNode(label)); node.addEventListener('click', callback); return node; }
-function freshTab() { return { id: crypto.randomUUID(), query: '', draft: '', kind: 'all', items: [], page: 0, loading: false, planning: false, planToken: '', error: '', token: '', hasMore: false }; }
+function freshTab() { return { id: crypto.randomUUID(), query: '', draft: '', browsingSaved: true, kind: 'all', items: [], page: 0, loading: false, planning: false, planToken: '', error: '', token: '', hasMore: false }; }
 let tabs = [freshTab()], activeId = tabs[0].id, saved = [], savedQuery = '', recent = [], preview = null, toastTimer;
 const busy = new Map();
 try {
   const state = JSON.parse(localStorage.getItem('image-session'));
-  if (state?.tabs?.length) { tabs = state.tabs.map(tab => ({ ...tab, loading: false, planning: false, planToken: '', error: '', token: '' })); activeId = tabs.some(tab => tab.id === state.activeId) ? state.activeId : tabs[0].id; recent = state.recent || []; }
+  if (state?.tabs?.length) { tabs = state.tabs.map(tab => ({ ...tab, browsingSaved: tab.browsingSaved ?? (!tab.query || tab.draft !== tab.query), loading: false, planning: false, planToken: '', error: '', token: '' })); activeId = tabs.some(tab => tab.id === state.activeId) ? state.activeId : tabs[0].id; recent = state.recent || []; }
 } catch {}
 function current() { return tabs.find(tab => tab.id === activeId); }
 function persist() {
@@ -94,7 +94,7 @@ async function aiSearch(tab = current()) {
   const prompt = tab.draft.trim();
   if (!prompt) return focusSearch();
   if (/[;；]/.test(prompt)) return submitSearch(tab);
-  const token = crypto.randomUUID(); tab.planToken = token; tab.planning = true; render();
+  const token = crypto.randomUUID(); tab.planToken = token; tab.planning = true; tab.browsingSaved = false; render();
   try {
     const output = await api.planSearches(prompt);
     if (tab.planToken !== token || !tabs.includes(tab)) return;
@@ -108,7 +108,7 @@ async function runSearch(tab, more = false) {
   const query = (more ? tab.query : tab.draft).trim();
   if (!query) return focusSearch();
   const token = crypto.randomUUID(); tab.token = token; tab.loading = true; tab.error = ''; tab.unread = false;
-  if (!more) { tab.query = query; tab.items = []; tab.page = 0; tab.hasMore = false; tab.scrollTop = 0; if (activeId === tab.id) $('#content').scrollTop = 0; }
+  if (!more) { tab.browsingSaved = false; tab.query = query; tab.items = []; tab.page = 0; tab.hasMore = false; tab.scrollTop = 0; if (activeId === tab.id) $('#content').scrollTop = 0; }
   recent = [query, ...recent.filter(value => value !== query)].slice(0, 6); render(); persist();
   try {
     const items = await api.search({ query, page: tab.page + 1, kind: tab.kind });
@@ -135,30 +135,45 @@ function renderSearchAction() {
   $('#ai-search-button').disabled = Boolean(tab?.planning);
   $('#ai-search-button .button-label').textContent = tab?.planning ? 'Thinking…' : 'AI search';
 }
+function matchingSaved(query) {
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return saved.filter(item => {
+    const text = [item.name, item.query, item.title].filter(Boolean).join(' ').toLowerCase();
+    return words.every(word => text.includes(word));
+  });
+}
+function visibleImages() {
+  const tab = current();
+  if (!tab) return matchingSaved(savedQuery);
+  if (tab.browsingSaved) return tab.draft.trim() ? matchingSaved(tab.draft) : [];
+  return tab.items;
+}
 function renderContent() {
   const content = $('#content'); const scroll = content.scrollTop; content.replaceChildren();
   const tab = current();
-  const items = tab ? tab.items : saved.filter(item => `${item.name} ${item.query} ${item.title}`.toLowerCase().includes(savedQuery.toLowerCase()));
-  $('#result-count').textContent = tab?.planning ? 'Planning searches…' : tab?.loading ? 'Searching…' : items.length ? `${items.length} ${tab ? 'images' : 'saved'}${tab?.kind === 'all' ? ' · Google Images' : ''}` : '';
-  if (tab?.planning) {
+  const items = visibleImages();
+  const resultsTab = tab?.browsingSaved ? null : tab;
+  $('#result-count').textContent = resultsTab?.planning ? 'Planning searches…' : resultsTab?.loading ? 'Searching…' : items.length ? `${items.length} ${resultsTab ? 'images' : 'saved'}${resultsTab?.kind === 'all' ? ' · Google Images' : ''}` : '';
+  if (resultsTab?.planning) {
     const note = element('div', 'loading-note planning-note'); note.innerHTML = '<span class="spinner"></span>'; note.append(document.createTextNode('Turning your description into image searches…')); content.append(note);
   }
-  if (tab?.error) {
+  if (resultsTab?.error) {
     const error = element('div', 'inline-error'); error.append(element('span', 'error-text', tab.error), button('Try again', null, () => runSearch(tab, tab.items.length > 0))); content.append(error);
   }
-  if (tab?.loading && !items.length) {
+  if (resultsTab?.loading && !items.length) {
     const note = element('div', 'loading-note'); note.innerHTML = '<span class="spinner"></span>'; note.append(document.createTextNode('Finding your images. You can start another tab.')); content.append(note);
     const grid = element('div', 'grid skeleton'); for (let index = 0; index < 8; index++) { const skeleton = element('div'); skeleton.innerHTML = '<div class="image-stage"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div>'; grid.append(skeleton); } content.append(grid); return;
   }
   if (!items.length) {
     let empty;
     if (!tab) empty = emptyState(savedQuery ? 'No saved images found.' : 'Your visuals, within reach.', savedQuery ? 'Try another search.' : 'Copy or save an image and it will be kept here, ready for next time.', 'bookmark');
+    else if (tab.browsingSaved) empty = element('div', 'empty minimal-empty', 'search for image');
     else if (tab.query) empty = emptyState(tab.error ? 'Let’s try that again.' : 'No images found.', tab.error ? 'Check the message above, or try a different search.' : 'Try a broader search or a different image type.');
     else { empty = element('div', 'empty minimal-empty', tab.planning ? '' : 'search for image'); }
     content.append(empty); return;
   }
-  const grid = element('div', 'grid'); items.forEach((item, index) => grid.append(card(item, tab, index))); content.append(grid);
-  if (tab?.hasMore) { const more = button(tab.loading ? 'Loading…' : 'Load more images', null, () => runSearch(tab, true), 'load-more'); more.disabled = tab.loading; content.append(more); }
+  const grid = element('div', 'grid'); items.forEach((item, index) => grid.append(card(item, resultsTab, index))); content.append(grid);
+  if (resultsTab?.hasMore) { const more = button(tab.loading ? 'Loading…' : 'Load more images', null, () => runSearch(tab, true), 'load-more'); more.disabled = tab.loading; content.append(more); }
   content.scrollTop = scroll;
 }
 function itemKey(item) { return item.key || item.id; }
@@ -206,7 +221,7 @@ async function perform(type, item, tab) {
     const result = await api.action({ type, item: { ...item, original: undefined }, query: tab?.query || item.query });
     if (type === 'removebg') {
       if (tab) { const original = { ...item }; Object.assign(item, result, { key, original }); }
-      else { const cutoutTab = freshTab(); cutoutTab.query = item.query; cutoutTab.draft = item.query; cutoutTab.items = [{ ...result, key: crypto.randomUUID(), original: item, query: item.query }]; tabs.push(cutoutTab); selectTab(cutoutTab.id); if (preview) preview = { item: cutoutTab.items[0], tab: cutoutTab }; }
+      else { const cutoutTab = freshTab(); cutoutTab.browsingSaved = false; cutoutTab.query = item.query; cutoutTab.draft = item.query; cutoutTab.items = [{ ...result, key: crypto.randomUUID(), original: item, query: item.query }]; tabs.push(cutoutTab); selectTab(cutoutTab.id); if (preview) preview = { item: cutoutTab.items[0], tab: cutoutTab }; }
       toast('Background removed. Ready to copy or save.');
     } else {
       await refreshSaved(); toast(type === 'copy' ? `${result.name} copied · kept in Saved` : `${result.name}.png saved to Downloads`);
@@ -215,7 +230,7 @@ async function perform(type, item, tab) {
   finally { busy.delete(key); renderContent(); updatePreview(); persist(); }
 }
 function openPreview(item, tab) {
-  const items = tab ? tab.items : saved.filter(entry => `${entry.name} ${entry.query} ${entry.title}`.toLowerCase().includes(savedQuery.toLowerCase()));
+  const items = visibleImages();
   preview = { item, tab, items: [...items] }; updatePreview(); $('#preview-dialog').showModal();
 }
 function previewItems() { return preview?.items || preview?.tab?.items || (preview ? [preview.item] : []); }
@@ -242,7 +257,7 @@ function updatePreview() {
   $('.preview-image-wrap').classList.toggle('cutout', Boolean(item.cutout));
   const actions = actionButtons(item, tab, true); $('#preview-actions').replaceChildren(...actions.childNodes);
 }
-async function refreshSaved() { saved = await api.library(); renderTabs(); if (activeId === 'saved') renderContent(); }
+async function refreshSaved() { saved = await api.library(); renderTabs(); if (activeId === 'saved' || current()?.browsingSaved) renderContent(); }
 function setShortcutLabel(shortcut) { return shortcut.replace('CommandOrControl', '⌘').replace('Control', '⌃').replace('Shift', '⇧').replace('Alt', '⌥').replaceAll('+', ''); }
 async function openSettings() {
   try {
@@ -288,7 +303,16 @@ $('#new-tab').addEventListener('click', newTab); $('#saved-tab').addEventListene
 $('#downloads-button').addEventListener('click', () => api.downloads().catch(error => toast(error.message, true)));
 $('#close-preview').addEventListener('click', () => { $('#preview-dialog').close(); preview = null; }); $('#preview-dialog').addEventListener('close', () => { preview = null; });
 $('#close-settings').addEventListener('click', () => $('#settings-dialog').close());
-$('#search-input').addEventListener('input', event => { if (current()) { const tab = current(); tab.draft = event.target.value; if (tab.planning) { cancelPlan(tab); render(); } else renderSearchAction(); } else { savedQuery = event.target.value; renderContent(); } });
+$('#search-input').addEventListener('input', event => {
+  $('#content').scrollTop = 0;
+  const tab = current();
+  if (tab) {
+    tab.draft = event.target.value; tab.browsingSaved = true; tab.scrollTop = 0;
+    if (tab.planning) cancelPlan(tab);
+    renderSearchAction(); renderTabs();
+  } else savedQuery = event.target.value;
+  renderContent();
+});
 $('#search-form').addEventListener('submit', event => { event.preventDefault(); submitSearch(); });
 $('#ai-search-button').addEventListener('click', () => aiSearch());
 $('#filters').addEventListener('click', event => { const node = event.target.closest('[data-kind]'); if (!node || !current()) return; const tab = current(); const changed = tab.kind !== node.dataset.kind; tab.kind = node.dataset.kind; closeFilters(true); if (changed && tab.draft.trim()) submitSearch(tab); else render(); persist(); });
