@@ -9,7 +9,7 @@ Built with Electron and plain JavaScript. No web server, framework build, accoun
 - **⌘⇧Space** shows or hides the launcher. Change it in Settings if another app already uses it.
 - **⌘T** opens a search tab immediately. Other tabs keep loading in the background.
 - Type `monkey; banana; jungle` and press **Enter** to launch each search in a separate tab. Empty fields and repeated queries are skipped. Up to 24 searches per batch.
-- Describe the visuals you need and click **AI search**. A lightweight GPT-4.1 nano model returns only a semicolon-separated list, which immediately launches as parallel searches (up to 12). Manual searches never call AI.
+- Describe the visuals you need and press **⌘Enter** or click **AI search**. A lightweight GPT-4.1 nano model returns only a semicolon-separated list, which immediately launches as parallel searches (up to 12). Manual searches never call AI.
 - Search all images, transparent images, or icons. Every image fits fully inside its cell without cropping.
 - Hover an image for **Copy**, **Save**, or **Remove BG**. The same actions appear in the full preview.
 - **Copy** places a real PNG image on the native clipboard and adds it to Saved.
@@ -23,6 +23,7 @@ Built with Electron and plain JavaScript. No web server, framework build, accoun
 | ⌘⇧Space | Show / hide |
 | ⌘T / ⌘W | New / close search tab |
 | ⌘L | Focus search |
+| ⌘Enter | AI search from a description |
 | ⌘1–8 | Switch search tab |
 | ⌘9 | Saved |
 | Control Tab | Next tab |

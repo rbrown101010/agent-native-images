@@ -3,6 +3,8 @@ const api = window.images;
 const paths = {
   search: '<circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/>',
   image: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m3 16 5-5 4 4 3-3 6 6"/>',
+  transparent: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/><path d="M3 3h6v6H3zM9 9h6v6H9zM15 3h6v6h-6zM3 15h6v6H3zM15 15h6v6h-6z" fill="currentColor" stroke="none" opacity=".4"/>',
+  icons: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><circle cx="17.5" cy="6.5" r="3.5"/><path d="m6.5 14 4 7h-8l4-7Z"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   plus: '<path d="M12 5v14M5 12h14"/>', close: '<path d="m6 6 12 12M6 18 18 6"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M15 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
   save: '<path d="M12 3v12m-5-5 5 5 5-5M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>',
@@ -41,7 +43,7 @@ function renderTabs() {
     const close = button('', 'close', () => closeTab(tab.id), 'close-tab'); close.setAttribute('aria-label', `Close ${tab.query || 'new search'}`);
     wrapper.append(main, close); container.append(wrapper);
   }
-  const savedTab = $('#saved-tab'); savedTab.innerHTML = icon('bookmark'); savedTab.append(document.createTextNode('Saved'), element('span', 'saved-count', String(saved.length))); savedTab.classList.toggle('active', activeId === 'saved'); savedTab.setAttribute('aria-selected', String(activeId === 'saved'));
+  const savedTab = $('#saved-tab'); savedTab.innerHTML = icon('bookmark'); savedTab.title = `Saved images (${saved.length}) · ⌘9`; savedTab.setAttribute('aria-label', `Saved images (${saved.length})`); savedTab.classList.toggle('active', activeId === 'saved'); savedTab.setAttribute('aria-selected', String(activeId === 'saved'));
 }
 function selectTab(id) {
   const previous = current(); if (previous) previous.scrollTop = $('#content').scrollTop;
@@ -122,7 +124,8 @@ function render() {
   $('#manual-search-button').hidden = !tab;
   $('#ai-search-button').hidden = !tab;
   $('#ai-search-button').disabled = Boolean(tab?.planning);
-  $('#ai-search-button').textContent = tab?.planning ? 'Thinking…' : 'AI search';
+  $('#ai-search-button .button-label').textContent = tab?.planning ? 'Thinking…' : 'AI search';
+  $('#ai-search-button .button-icon').innerHTML = tab?.planning ? '<span class="spinner"></span>' : icon('cut');
   renderContent();
 }
 function renderContent() {
@@ -144,12 +147,7 @@ function renderContent() {
     let empty;
     if (!tab) empty = emptyState(savedQuery ? 'No saved images found.' : 'Your visuals, within reach.', savedQuery ? 'Try another search.' : 'Copy or save an image and it will be kept here, ready for next time.', 'bookmark');
     else if (tab.query) empty = emptyState(tab.error ? 'Let’s try that again.' : 'No images found.', tab.error ? 'Check the message above, or try a different search.' : 'Try a broader search or a different image type.');
-    else {
-      empty = emptyState('Find your next visual.', 'Search images, grab an icon, or make a cutout.\nFrom idea to clipboard in seconds.');
-      const suggestions = element('div', 'suggestions');
-      for (const query of (recent.length ? recent.slice(0, 3) : ['Monkey', 'Chrome icon', 'Paper texture'])) suggestions.append(button(query, null, () => { tab.draft = query; $('#search-input').value = query; runSearch(tab); }));
-      empty.append(suggestions, element('div', 'batch-hint', 'monkey; banana; jungle → Enter to search all three'), element('div', 'empty-key', 'Or describe what you need and click AI search'));
-    }
+    else { empty = element('div', 'empty minimal-empty', tab.planning ? '' : 'search for image'); }
     content.append(empty); return;
   }
   const grid = element('div', 'grid'); items.forEach((item, index) => grid.append(card(item, tab, index))); content.append(grid);
@@ -231,6 +229,8 @@ async function openSettings() {
   } catch (error) { toast(error.message, true); }
 }
 $('#search-icon').innerHTML = icon('search'); $('#new-tab').innerHTML = icon('plus'); $('#settings-button').innerHTML = icon('settings'); $('#close-preview').innerHTML = icon('close'); $('#close-settings').innerHTML = icon('close'); $('#downloads-button').innerHTML = icon('folder') + 'Downloads';
+$('#manual-search-button .button-icon').innerHTML = icon('search');
+for (const filter of document.querySelectorAll('[data-kind]')) filter.innerHTML = icon({ all: 'image', transparent: 'transparent', icons: 'icons' }[filter.dataset.kind]);
 $('#new-tab').addEventListener('click', newTab); $('#saved-tab').addEventListener('click', () => selectTab('saved')); $('#settings-button').addEventListener('click', openSettings);
 $('#downloads-button').addEventListener('click', () => api.downloads().catch(error => toast(error.message, true)));
 $('#close-preview').addEventListener('click', () => { $('#preview-dialog').close(); preview = null; }); $('#preview-dialog').addEventListener('close', () => { preview = null; });
@@ -251,6 +251,7 @@ document.addEventListener('keydown', event => {
     if (event.key.toLowerCase() === 'b') { event.preventDefault(); perform('removebg', preview.item, preview.tab); }
     return;
   }
+  if (command && event.key === 'Enter' && current()) { event.preventDefault(); if (!event.repeat) aiSearch(); return; }
   if (event.key === 'Escape') { event.preventDefault(); api.hide(); }
   if (command && event.key.toLowerCase() === 'l') { event.preventDefault(); focusSearch(); }
   if (command && event.key.toLowerCase() === 't') { event.preventDefault(); newTab(); }
