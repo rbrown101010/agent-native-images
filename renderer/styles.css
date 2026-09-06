@@ -24,9 +24,9 @@ dialog{background:#1c1c1c;color:var(--ink);border:1px solid #3c3c3c;border-radiu
 body{display:grid;grid-template-columns:64px minmax(0,1fr);grid-template-rows:48px minmax(0,1fr);isolation:isolate;background:#30213e}
 body::before{content:"";position:fixed;inset:-28px;background-image:linear-gradient(#19141d60,#19141d60),url('../assets/shell-palette.png');background-size:100% 100%;background-position:center;filter:blur(25px) saturate(.85);z-index:-1;pointer-events:none}
 .titlebar{grid-column:1/-1;grid-row:1;position:relative;height:48px;padding:0 14px;gap:0;background:#17131d16}.titlebar .brand{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:14px;font-weight:600;letter-spacing:-.35px;color:#f5f0f8;pointer-events:none}.titlebar>.icon-button{color:#f0e6f3b8}.titlebar>.icon-button:hover{background:#ffffff15;color:#fff}
-.module-sidebar{grid-column:1;grid-row:2;display:flex;flex-direction:column;align-items:center;gap:13px;padding:15px 0;background:#17131d12}.module-button{width:40px;height:40px;display:grid;place-items:center;border-radius:11px;color:#fff;transition:background .15s,opacity .15s;position:relative}.module-button svg{width:21px;height:21px;stroke-width:1.6}.module-button.active{background:#ffffff21;box-shadow:inset 0 0 0 1px #ffffff30}.module-button.active:hover{background:#ffffff30}.module-button.mystery{opacity:.43}.module-button.mystery:hover,.module-button.mystery:focus-visible{opacity:.72;background:#ffffff14}
+.module-sidebar{grid-column:1;grid-row:2;background:#17131d12}
 .workspace{grid-column:2;grid-row:2;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:var(--bg);border:1px solid #ffffff24;border-right:0;border-bottom:0;border-radius:12px 0 0 0}.workspace .tabbar{padding-top:1px}.workspace #content{min-height:0}
-@media(max-width:760px){body{grid-template-columns:56px minmax(0,1fr)}.module-button{width:36px;height:36px}.workspace #search-form{margin-left:18px;margin-right:18px}.workspace #search-form{gap:8px}.workspace #search-input{font-size:17px}}
+@media(max-width:760px){body{grid-template-columns:56px minmax(0,1fr)}.workspace #search-form{margin-left:18px;margin-right:18px}.workspace #search-form{gap:8px}.workspace #search-input{font-size:17px}}
 
 /* Settings keeps secondary controls out of the image workspace. */
 #settings-dialog{width:440px;max-width:calc(100vw - 40px);max-height:calc(100vh - 48px);padding:24px;scrollbar-width:thin;scrollbar-color:#444 transparent}
@@ -50,3 +50,7 @@ body::before{content:"";position:fixed;inset:-28px;background-image:linear-gradi
 #ai-search-button .ai-shortcut{font-size:11px;color:#666}
 #ai-search-button:hover:not(:disabled){color:#ededed}#ai-search-button:hover:not(:disabled) .button-label{text-decoration:underline;text-underline-offset:3px}#ai-search-button:hover:not(:disabled) .ai-shortcut{color:#999}
 #ai-search-button:disabled{opacity:.6}
+
+#settings-button{width:34px;height:34px;border-radius:9px;color:#f3edf5cc;transition:background .15s,color .15s}
+#settings-button svg{width:20px;height:20px;stroke-width:2.2}
+#settings-button:hover{background:#ffffff18;color:#fff}#settings-button:active{background:#ffffff25}

@@ -9,10 +9,7 @@
 </head>
 <body>
   <header class="titlebar"><span class="brand">Agent Native</span><button id="settings-button" class="icon-button" aria-label="Settings" title="Settings · ⌘,"></button></header>
-  <nav class="module-sidebar" aria-label="App modules">
-    <button id="images-module" class="module-button active" aria-label="Images" aria-current="page" title="Images"></button>
-    <button id="mystery-module" class="module-button mystery" aria-label="Coming soon" title="Coming soon"></button>
-  </nav>
+  <div class="module-sidebar" aria-hidden="true"></div>
   <section class="workspace" aria-label="Images workspace">
   <nav class="tabbar" aria-label="Search tabs"><div id="tabs" role="tablist"></div><button id="new-tab" class="icon-button" title="New search · ⌘T" aria-label="New search tab"></button><button id="saved-tab" role="tab" aria-selected="false"></button></nav>
   <form id="search-form" autocomplete="off"><span id="search-icon"></span><input id="search-input" type="search" placeholder="Search Google Images…" aria-label="Search Google Images" maxlength="6000" autofocus><button id="ai-search-button" type="button" title="AI search · ⌘Enter" aria-label="AI search" aria-keyshortcuts="Meta+Enter" hidden><span class="button-label">AI search</span><span class="ai-shortcut" aria-hidden="true">⌘Enter</span></button></form>

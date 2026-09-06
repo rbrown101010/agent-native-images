@@ -14,7 +14,7 @@ const paths = {
   folder: '<path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>',
   bookmark: '<path d="M6 4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17l-6-4-6 4V4Z"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
-  settings: '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="currentColor" stroke="none"/><circle cx="15" cy="17" r="3" fill="currentColor" stroke="none"/>',
+  settings: '<path d="M9.7 3h4.6l.6 2.6 2 .9 2.4-.8 2.3 4-1.9 1.8v2.3l1.9 1.8-2.3 4-2.4-.8-2 .9-.6 2.3H9.7l-.6-2.3-2-.9-2.4.8-2.3-4 1.9-1.8v-2.3L2.4 9.7l2.3-4 2.4.8 2-.9L9.7 3Z"/><circle cx="12" cy="12" r="3"/>',
   undo: '<path d="M3 9h11a6 6 0 0 1 0 12M3 9l5-5M3 9l5 5"/>',
   external: '<path d="M14 3h7v7m0-7L10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/>',
 };
@@ -252,9 +252,6 @@ async function openSettings() {
   } catch (error) { toast(error.message, true); }
 }
 $('#search-icon').innerHTML = icon('search'); $('#new-tab').innerHTML = icon('plus'); $('#settings-button').innerHTML = icon('settings'); $('#close-preview').innerHTML = icon('close'); $('#close-settings').innerHTML = icon('close'); $('#downloads-button').innerHTML = icon('folder') + 'Open folder';
-$('#images-module').innerHTML = icon('image'); $('#mystery-module').innerHTML = icon('mystery');
-$('#images-module').addEventListener('click', () => focusSearch());
-$('#mystery-module').addEventListener('click', () => toast('coming soon'));
 $('#previous-image').innerHTML = icon('left'); $('#next-image').innerHTML = icon('right');
 $('#previous-image').addEventListener('click', () => navigatePreview(-1));
 $('#next-image').addEventListener('click', () => navigatePreview(1));
