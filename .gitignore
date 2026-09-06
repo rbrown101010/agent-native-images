@@ -1,0 +1,8 @@
+node_modules/
+release/
+test-artifacts/
+*.log
+.env*
+*.enc
+*credentials*.json
+.DS_Store

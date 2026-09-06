@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: http: data: asset:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Agent Native Images</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="titlebar"><span class="brand">agent native<span class="brand-dot">.</span></span><span class="app-label">Images</span><button id="settings-button" class="icon-button" aria-label="Settings" title="Settings · ⌘,"></button></header>
+  <nav class="tabbar" aria-label="Search tabs"><div id="tabs" role="tablist"></div><button id="new-tab" class="icon-button" title="New search · ⌘T" aria-label="New search tab"></button><button id="saved-tab" role="tab" aria-selected="false"></button></nav>
+  <form id="search-form" autocomplete="off"><span id="search-icon"></span><input id="search-input" type="search" placeholder="Search Google Images…" aria-label="Search Google Images" maxlength="300" autofocus><button class="search-submit" type="submit" title="Search">Search <kbd>↵</kbd></button></form>
+  <div class="toolbar"><div id="filters" role="group" aria-label="Image type"><button data-kind="all" class="active" aria-pressed="true">All images</button><button data-kind="transparent" aria-pressed="false">Transparent</button><button data-kind="icons" aria-pressed="false">Icons</button></div><span id="result-count" aria-live="polite"></span></div>
+  <main id="content" tabindex="-1"></main>
+  <footer><button id="downloads-button" title="Open Downloads"></button><span class="footer-hint"><kbd>⌘ T</kbd> new tab <span class="footer-dot">·</span> <kbd>Space</kbd> preview</span><span class="footer-right"><span id="shortcut-label">⌘⇧Space</span><span class="footer-dot">·</span><kbd>esc</kbd> hide</span></footer>
+  <div id="toast" role="status" hidden></div>
+  <dialog id="preview-dialog"><div class="preview-header"><div><strong id="preview-title"></strong><span id="preview-meta"></span></div><button class="icon-button" id="close-preview" aria-label="Close preview"></button></div><div class="preview-image-wrap"><img id="preview-image" alt=""></div><div id="preview-actions"></div></dialog>
+  <dialog id="settings-dialog"><form id="settings-form"><div class="dialog-heading"><h2>Settings</h2><button type="button" id="close-settings" class="icon-button" aria-label="Close settings"></button></div><p class="muted">Your image tools, one shortcut away.</p><label>Global shortcut<select id="shortcut-select"><option value="CommandOrControl+Shift+Space">⌘ Shift Space</option><option value="CommandOrControl+Alt+Space">⌘ Option Space</option><option value="Control+Alt+Space">Control Option Space</option></select></label><label class="check-label"><input id="login-checkbox" type="checkbox">Open at login</label><label>Serper API key <span id="serper-state"></span><input type="password" id="serper-key" placeholder="Enter API key" autocomplete="off"></label><label>remove.bg API key <span id="removebg-state"></span><input type="password" id="removebg-key" placeholder="Enter API key" autocomplete="off"></label><p class="settings-note">Keys are encrypted on this Mac. Background removal uses your remove.bg credits.</p><p id="settings-error" class="error-text" role="alert"></p><button class="primary-button" type="submit">Save settings</button></form></dialog>
+  <script src="app.js"></script>
+</body>
+</html>
