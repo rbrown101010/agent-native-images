@@ -49,6 +49,35 @@ const assert = require('node:assert/strict');
     // Closing a planning tab also cancels its result.
     await page.locator('#ai-search-button').click(); await page.locator('#tabs .tab.active .close-tab').click();
     await page.waitForTimeout(650); assert.equal(await page.locator('#tabs .tab').count(), 6);
+    // Preview navigation stays in the current result order and respects boundaries.
+    await page.evaluate(() => {
+      const tab = current();
+      const base = tab.items[0];
+      tab.items = [1, 2, 3].map(n => ({ ...base, key: `preview-${n}`, title: `Preview ${n}`, sourceUrl: base.previewUrl }));
+      renderContent();
+    });
+    await page.locator('.image-stage').first().click();
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await page.locator('#preview-title').innerText(), 'Preview 1');
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.locator('#preview-title').innerText(), 'Preview 2');
+    await page.locator('#next-image').click();
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.locator('#preview-title').innerText(), 'Preview 3');
+    assert.equal(await page.locator('#next-image').isDisabled(), true);
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await page.locator('#preview-position').innerText(), '2 / 3');
+    await page.locator('#close-preview').click();
+    await page.evaluate(() => {
+      const base = current().items[0];
+      saved = [{ ...base, id: 'a', name: 'Match one' }, { ...base, id: 'b', name: 'Skip' }, { ...base, id: 'c', name: 'Match two' }];
+      savedQuery = 'Match'; selectTab('saved');
+    });
+    await page.locator('.image-stage').first().click();
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.locator('#preview-title').innerText(), 'Match two');
+    assert.equal(await page.locator('#preview-position').innerText(), '2 / 2');
+    await page.keyboard.press('Escape');
     assert.deepEqual(errors, []);
     console.log('PASS: parallel Enter batches, deduplication, contained cards, AI button, background completion, edit/close cancellation.');
   } finally { await app.close(); await fs.rm(root, { recursive: true, force: true }); }

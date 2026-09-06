@@ -30,6 +30,7 @@ Built with Electron and plain JavaScript. No web server, framework build, accoun
 | ↓ from search | Focus first result |
 | Arrow keys | Move through results |
 | Space / Enter | Preview focused image |
+| ← / → in preview | Previous / next image in the current results or filtered Saved view |
 | ⌘C / ⌘S | Copy / save focused image or preview |
 | B | Remove background of focused image or preview |
 | Escape | Close preview or hide launcher |

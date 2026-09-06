@@ -6,6 +6,7 @@ const paths = {
   transparent: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/><path d="M3 3h6v6H3zM9 9h6v6H9zM15 3h6v6h-6zM3 15h6v6H3zM15 15h6v6h-6z" fill="currentColor" stroke="none" opacity=".4"/>',
   icons: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><circle cx="17.5" cy="6.5" r="3.5"/><path d="m6.5 14 4 7h-8l4-7Z"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   plus: '<path d="M12 5v14M5 12h14"/>', close: '<path d="m6 6 12 12M6 18 18 6"/>',
+  left: '<path d="m14 6-6 6 6 6"/>', right: '<path d="m10 6 6 6-6 6"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M15 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
   save: '<path d="M12 3v12m-5-5 5 5 5-5M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>',
   cut: '<path d="m16 3 1.5 4.5L22 9l-4.5 1.5L16 15l-1.5-4.5L10 9l4.5-1.5L16 3ZM6 12l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3Z"/>',
@@ -207,10 +208,27 @@ async function perform(type, item, tab) {
   } catch (error) { toast(error.message, true); }
   finally { busy.delete(key); renderContent(); updatePreview(); persist(); }
 }
-function openPreview(item, tab) { preview = { item, tab }; updatePreview(); $('#preview-dialog').showModal(); }
+function openPreview(item, tab) {
+  const items = tab ? tab.items : saved.filter(entry => `${entry.name} ${entry.query} ${entry.title}`.toLowerCase().includes(savedQuery.toLowerCase()));
+  preview = { item, tab, items: [...items] }; updatePreview(); $('#preview-dialog').showModal();
+}
+function previewItems() { return preview?.items || preview?.tab?.items || (preview ? [preview.item] : []); }
+function navigatePreview(direction) {
+  if (!preview) return;
+  const items = previewItems();
+  const index = items.indexOf(preview.item);
+  const next = index + direction;
+  if (index < 0 || next < 0 || next >= items.length) return;
+  preview.item = items[next]; updatePreview();
+}
 function updatePreview() {
   if (!preview) return;
   const { item, tab } = preview;
+  const items = previewItems(); const index = items.indexOf(item);
+  $('#preview-position').textContent = `${index + 1} / ${items.length}`;
+  $('#previous-image').disabled = index <= 0;
+  $('#next-image').disabled = index < 0 || index >= items.length - 1;
+  $('#preview-navigation').hidden = items.length <= 1;
   $('#preview-title').textContent = item.name || item.title;
   $('#preview-meta').textContent = `${item.width && item.height ? `${item.width} × ${item.height} · ` : ''}${item.cutout ? 'Transparent PNG' : sourceDomain(item)}`;
   $('#preview-image').src = item.id ? item.previewUrl : item.sourceUrl; $('#preview-image').alt = item.title || item.name;
@@ -230,6 +248,9 @@ async function openSettings() {
 }
 $('#search-icon').innerHTML = icon('search'); $('#new-tab').innerHTML = icon('plus'); $('#settings-button').innerHTML = icon('settings'); $('#close-preview').innerHTML = icon('close'); $('#close-settings').innerHTML = icon('close'); $('#downloads-button').innerHTML = icon('folder') + 'Downloads';
 $('#manual-search-button .button-icon').innerHTML = icon('search');
+$('#previous-image').innerHTML = icon('left'); $('#next-image').innerHTML = icon('right');
+$('#previous-image').addEventListener('click', () => navigatePreview(-1));
+$('#next-image').addEventListener('click', () => navigatePreview(1));
 for (const filter of document.querySelectorAll('[data-kind]')) filter.innerHTML = icon({ all: 'image', transparent: 'transparent', icons: 'icons' }[filter.dataset.kind]);
 $('#new-tab').addEventListener('click', newTab); $('#saved-tab').addEventListener('click', () => selectTab('saved')); $('#settings-button').addEventListener('click', openSettings);
 $('#downloads-button').addEventListener('click', () => api.downloads().catch(error => toast(error.message, true)));
@@ -247,6 +268,7 @@ document.addEventListener('keydown', event => {
   if ($('#settings-dialog').open) return;
   const command = event.metaKey || event.ctrlKey;
   if ($('#preview-dialog').open) {
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); navigatePreview(event.key === 'ArrowLeft' ? -1 : 1); return; }
     if (command && ['c', 's'].includes(event.key.toLowerCase())) { event.preventDefault(); perform(event.key.toLowerCase() === 'c' ? 'copy' : 'save', preview.item, preview.tab); }
     if (event.key.toLowerCase() === 'b') { event.preventDefault(); perform('removebg', preview.item, preview.tab); }
     return;
