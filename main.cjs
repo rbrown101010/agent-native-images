@@ -5,6 +5,7 @@ const { pathToFileURL } = require('node:url');
 const { randomUUID } = require('node:crypto');
 const { Library } = require('./library.cjs');
 const { planSearches, DEFAULT_MODEL } = require('./ai-search.cjs');
+const { normalizeImage } = require('./image-formats.cjs');
 
 app.setName('Agent Native Images');
 const testMode = process.argv.includes('--test-mode');
@@ -60,12 +61,10 @@ async function search({ query, page = 1, kind = 'all' }) {
   }));
 }
 async function storeAsset(bytes, info) {
-  const image = nativeImage.createFromBuffer(bytes);
-  if (image.isEmpty()) throw new Error('This format could not be opened. Try another image.');
-  const size = image.getSize();
+  const image = await normalizeImage(bytes);
   const id = randomUUID();
-  await fs.writeFile(imagePath(id), image.toPNG(), { mode: 0o600 });
-  const asset = { id, ...info, width: size.width, height: size.height, previewUrl: `asset://image/${id}` };
+  await fs.writeFile(imagePath(id), image.bytes, { mode: 0o600 });
+  const asset = { id, ...info, width: image.width, height: image.height, sourceFormat: image.sourceFormat, previewUrl: `asset://image/${id}` };
   await fs.writeFile(imagePath(id) + '.json', JSON.stringify(asset), { mode: 0o600 });
   assets.set(id, asset);
   return asset;

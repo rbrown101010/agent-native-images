@@ -13,6 +13,7 @@ Built with Electron and plain JavaScript. No web server, framework build, accoun
 - Search all images, transparent images, or icons. Every image fits fully inside its cell without cropping.
 - Hover an image for **Copy**, **Save**, or **Remove BG**. The same actions appear in the full preview.
 - **Copy** places a real PNG image on the native clipboard and adds it to Saved.
+- PNG, JPEG, WebP, AVIF, SVG, GIF, and TIFF are converted to PNG with transparency preserved. SVG icons render at a minimum 1024 pixels on their longest edge; animated formats use the first frame.
 - **Save** writes a PNG to your Downloads folder and adds it to Saved.
 - Names follow the search: `Monkey (1).png`, `Monkey (2).png`, and so on. Copying then saving the same image reuses its library entry. A cutout is a separate image.
 - Saved images and search tabs persist across restarts. Downloads are never overwritten. Removing a library entry keeps the downloaded file.
@@ -84,6 +85,7 @@ Add `TEST_REMOVE_BG=1` to also test background removal and consume a remove.bg c
 
 - `main.cjs`: native window, global shortcut, API requests, clipboard, secure credentials, and restricted IPC.
 - `ai-search.cjs`: lightweight AI query planning with a strict semicolon-only prompt.
+- `image-formats.cjs`: asynchronous format conversion, SVG rasterization, and orientation handling.
 - `library.cjs`: serialized library writes, collision-safe filenames, and Downloads.
 - `preload.cjs`: narrow context-isolated renderer bridge.
 - `renderer/`: the local interface. All remote text is inserted as text, not HTML.
