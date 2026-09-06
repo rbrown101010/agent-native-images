@@ -1,6 +1,7 @@
 const $ = selector => document.querySelector(selector);
 const api = window.images;
 const paths = {
+  filter: '<path d="M4 5h16M7 12h10M10 19h4"/>',
   search: '<circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/>',
   image: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m3 16 5-5 4 4 3-3 6 6"/>',
   transparent: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/><path d="M3 3h6v6H3zM9 9h6v6H9zM15 3h6v6h-6zM3 15h6v6H3zM15 15h6v6h-6z" fill="currentColor" stroke="none" opacity=".4"/>',
@@ -48,6 +49,7 @@ function renderTabs() {
   const savedTab = $('#saved-tab'); savedTab.innerHTML = icon('bookmark'); savedTab.title = `Saved images (${saved.length}) · ⌘9`; savedTab.setAttribute('aria-label', `Saved images (${saved.length})`); savedTab.classList.toggle('active', activeId === 'saved'); savedTab.setAttribute('aria-selected', String(activeId === 'saved'));
 }
 function selectTab(id) {
+  closeFilters();
   const previous = current(); if (previous) previous.scrollTop = $('#content').scrollTop;
   activeId = id;
   const tab = current(); if (tab) tab.unread = false;
@@ -122,7 +124,8 @@ function emptyState(title, description, image = 'image') {
 function render() {
   renderTabs();
   const tab = current(); $('#filters').hidden = !tab;
-  for (const filter of document.querySelectorAll('[data-kind]')) { const active = filter.dataset.kind === tab?.kind; filter.classList.toggle('active', active); filter.setAttribute('aria-pressed', String(active)); }
+  for (const filter of document.querySelectorAll('[data-kind]')) { const active = filter.dataset.kind === tab?.kind; filter.classList.toggle('active', active); filter.setAttribute('aria-checked', String(active)); }
+  $('#filter-button').classList.toggle('filtered', Boolean(tab && tab.kind !== 'all'));
   renderSearchAction();
   renderContent();
 }
@@ -255,7 +258,32 @@ $('#search-icon').innerHTML = icon('search'); $('#new-tab').innerHTML = icon('pl
 $('#previous-image').innerHTML = icon('left'); $('#next-image').innerHTML = icon('right');
 $('#previous-image').addEventListener('click', () => navigatePreview(-1));
 $('#next-image').addEventListener('click', () => navigatePreview(1));
-for (const filter of document.querySelectorAll('[data-kind]')) filter.innerHTML = icon({ all: 'image', transparent: 'transparent', icons: 'icons' }[filter.dataset.kind]);
+$('#filter-button').innerHTML = icon('filter');
+for (const filter of document.querySelectorAll('[data-kind]')) filter.insertAdjacentHTML('afterbegin', icon('check'));
+function closeFilters(restoreFocus = false) {
+  $('#filter-menu').hidden = true; $('#filter-button').setAttribute('aria-expanded', 'false');
+  if (restoreFocus) $('#filter-button').focus();
+}
+function openFilters() {
+  $('#filter-menu').hidden = false; $('#filter-button').setAttribute('aria-expanded', 'true');
+  $('#filter-menu [aria-checked="true"]').focus();
+}
+$('#filter-button').addEventListener('click', () => $('#filter-menu').hidden ? openFilters() : closeFilters(true));
+$('#filter-button').addEventListener('keydown', event => {
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); openFilters(); }
+});
+$('#filters').addEventListener('keydown', event => {
+  if ($('#filter-menu').hidden) return;
+  const options = [...document.querySelectorAll('#filter-menu button')];
+  const index = options.indexOf(document.activeElement);
+  if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    event.preventDefault(); event.stopPropagation();
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : options.length - 1)) % options.length;
+    options[next].focus();
+  } else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeFilters(true); }
+});
+document.addEventListener('pointerdown', event => { if (!$('#filters').contains(event.target)) closeFilters(); });
+$('#filters').addEventListener('focusout', event => { if (!$('#filters').contains(event.relatedTarget)) closeFilters(); });
 $('#new-tab').addEventListener('click', newTab); $('#saved-tab').addEventListener('click', () => selectTab('saved')); $('#settings-button').addEventListener('click', openSettings);
 $('#downloads-button').addEventListener('click', () => api.downloads().catch(error => toast(error.message, true)));
 $('#close-preview').addEventListener('click', () => { $('#preview-dialog').close(); preview = null; }); $('#preview-dialog').addEventListener('close', () => { preview = null; });
@@ -263,7 +291,7 @@ $('#close-settings').addEventListener('click', () => $('#settings-dialog').close
 $('#search-input').addEventListener('input', event => { if (current()) { const tab = current(); tab.draft = event.target.value; if (tab.planning) { cancelPlan(tab); render(); } else renderSearchAction(); } else { savedQuery = event.target.value; renderContent(); } });
 $('#search-form').addEventListener('submit', event => { event.preventDefault(); submitSearch(); });
 $('#ai-search-button').addEventListener('click', () => aiSearch());
-$('#filters').addEventListener('click', event => { const node = event.target.closest('[data-kind]'); if (!node || !current()) return; const tab = current(); tab.kind = node.dataset.kind; if (tab.draft.trim()) submitSearch(tab); else render(); });
+$('#filters').addEventListener('click', event => { const node = event.target.closest('[data-kind]'); if (!node || !current()) return; const tab = current(); const changed = tab.kind !== node.dataset.kind; tab.kind = node.dataset.kind; closeFilters(true); if (changed && tab.draft.trim()) submitSearch(tab); else render(); persist(); });
 $('#settings-form').addEventListener('submit', async event => {
   event.preventDefault(); const submit = $('#settings-form .primary-button'); submit.disabled = true; $('#settings-error').textContent = '';
   try { const status = await api.configure({ serper: $('#serper-key').value, removebg: $('#removebg-key').value, gateway: $('#gateway-key').value, shortcut: $('#shortcut-select').value, launchAtLogin: $('#login-checkbox').checked }); $('#shortcut-label').textContent = setShortcutLabel(status.shortcut); $('#settings-dialog').close(); $('#serper-key').value = ''; $('#removebg-key').value = ''; $('#gateway-key').value = ''; toast('Settings saved.'); } catch (error) { $('#settings-error').textContent = error.message; } finally { submit.disabled = false; }
