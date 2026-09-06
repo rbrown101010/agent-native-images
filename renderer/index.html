@@ -18,11 +18,39 @@
   <form id="search-form" autocomplete="off"><span id="search-icon"></span><input id="search-input" type="search" placeholder="Search Google Images…" aria-label="Search Google Images" maxlength="6000" autofocus><button id="ai-search-button" class="search-submit" type="button" title="AI search · ⌘Enter" aria-label="AI search"><span class="button-icon"></span><span class="button-label">AI search</span><kbd>⌘↵</kbd></button><button id="manual-search-button" class="search-submit" type="submit" title="Search · Enter" aria-label="Search"><span class="button-icon"></span><span class="button-label">Search</span><kbd>↵</kbd></button></form>
   <div class="toolbar"><div id="filters" role="group" aria-label="Image type"><button data-kind="all" class="active" aria-pressed="true" title="All images" aria-label="All images"></button><button data-kind="transparent" aria-pressed="false" title="Transparent" aria-label="Transparent"></button><button data-kind="icons" aria-pressed="false" title="Icons" aria-label="Icons"></button></div><span id="result-count" aria-live="polite"></span></div>
   <main id="content" tabindex="-1"></main>
-  <footer><button id="downloads-button" title="Open Downloads"></button><span class="footer-hint"><kbd>⌘ T</kbd> new tab <span class="footer-dot">·</span> <kbd>;</kbd> separate searches</span><span class="footer-right"><span id="shortcut-label">⌘⇧Space</span><span class="footer-dot">·</span><kbd>esc</kbd> hide</span></footer>
   </section>
   <div id="toast" role="status" hidden></div>
   <dialog id="preview-dialog"><div class="preview-header"><div><strong id="preview-title"></strong><span id="preview-meta"></span></div><nav id="preview-navigation" aria-label="Image navigation"><button id="previous-image" class="icon-button" aria-label="Previous image" title="Previous image · ←"></button><span id="preview-position" aria-live="polite"></span><button id="next-image" class="icon-button" aria-label="Next image" title="Next image · →"></button></nav><button class="icon-button" id="close-preview" aria-label="Close preview"></button></div><div class="preview-image-wrap"><img id="preview-image" alt=""></div><div id="preview-actions"></div></dialog>
-  <dialog id="settings-dialog"><form id="settings-form"><div class="dialog-heading"><h2>Settings</h2><button type="button" id="close-settings" class="icon-button" aria-label="Close settings"></button></div><p class="muted">Your image tools, one shortcut away.</p><label>Global shortcut<select id="shortcut-select"><option value="CommandOrControl+Shift+Space">⌘ Shift Space</option><option value="CommandOrControl+Alt+Space">⌘ Option Space</option><option value="Control+Alt+Space">Control Option Space</option></select></label><label class="check-label"><input id="login-checkbox" type="checkbox">Open at login</label><label>Serper API key <span id="serper-state"></span><input type="password" id="serper-key" placeholder="Enter API key" autocomplete="off"></label><label>remove.bg API key <span id="removebg-state"></span><input type="password" id="removebg-key" placeholder="Enter API key" autocomplete="off"></label><label>AI Gateway key <span id="gateway-state"></span><input type="password" id="gateway-key" placeholder="Enter API key" autocomplete="off"></label><p class="settings-note">Keys are encrypted on this Mac. Background removal uses your remove.bg credits.</p><p id="settings-error" class="error-text" role="alert"></p><button class="primary-button" type="submit">Save settings</button></form></dialog>
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <form id="settings-form">
+      <div class="dialog-heading"><h2 id="settings-title">Settings</h2><button type="button" id="close-settings" class="icon-button" aria-label="Close settings"></button></div>
+      <div class="settings-general">
+        <label class="setting-row" for="shortcut-select"><span>Open app</span><select id="shortcut-select"><option value="CommandOrControl+Shift+Space">⌘ Shift Space</option><option value="CommandOrControl+Alt+Space">⌘ Option Space</option><option value="Control+Alt+Space">Control Option Space</option></select></label>
+        <label class="setting-row" for="login-checkbox"><span>Open at login</span><input id="login-checkbox" type="checkbox" role="switch"></label>
+        <div class="setting-row"><span>Downloads</span><button type="button" id="downloads-button" title="Open Downloads"></button></div>
+      </div>
+      <details class="settings-disclosure" id="api-settings">
+        <summary>API Settings</summary>
+        <div class="settings-disclosure-content">
+          <label>Serper <span id="serper-state"></span><input type="password" id="serper-key" placeholder="Enter API key" autocomplete="off"></label>
+          <label>remove.bg <span id="removebg-state"></span><input type="password" id="removebg-key" placeholder="Enter API key" autocomplete="off"></label>
+          <label>AI Gateway <span id="gateway-state"></span><input type="password" id="gateway-key" placeholder="Enter API key" autocomplete="off"></label>
+          <p class="settings-note">Keys are encrypted on this Mac. Leave a field blank to keep its saved key. Background removal uses your remove.bg credits.</p>
+        </div>
+      </details>
+      <details class="settings-disclosure" id="keyboard-settings">
+        <summary>Keyboard shortcuts</summary>
+        <dl class="shortcut-list">
+          <div><dt>Show or hide app</dt><dd><kbd id="shortcut-label">⌘⇧Space</kbd></dd></div>
+          <div><dt>New search tab</dt><dd><kbd>⌘T</kbd></dd></div>
+          <div><dt>Separate searches</dt><dd><kbd>;</kbd></dd></div>
+          <div><dt>AI search</dt><dd><kbd>⌘Enter</kbd></dd></div>
+          <div><dt>Hide app</dt><dd><kbd>Esc</kbd></dd></div>
+        </dl>
+      </details>
+      <div class="settings-actions"><p id="settings-error" class="error-text" role="alert"></p><button class="primary-button" type="submit">Save settings</button></div>
+    </form>
+  </dialog>
   <script src="search-queries.js"></script>
   <script src="app.js"></script>
 </body>

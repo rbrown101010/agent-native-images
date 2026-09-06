@@ -243,11 +243,13 @@ async function openSettings() {
   try {
     const status = await api.status(); $('#shortcut-select').value = status.shortcut; $('#login-checkbox').checked = status.launchAtLogin;
     for (const [name, configured] of [['serper', status.serper], ['removebg', status.removebg], ['gateway', status.gateway]]) { $(`#${name}-state`).textContent = configured ? 'Connected' : 'Not configured'; $(`#${name}-key`).value = ''; $(`#${name}-key`).placeholder = configured ? 'Saved securely · enter to replace' : 'Enter API key'; }
-    $('#settings-error').textContent = status.shortcutActive ? '' : 'The shortcut is unavailable. Choose another shortcut below.';
+    $('#settings-error').textContent = status.shortcutActive ? '' : 'The shortcut is unavailable. Choose another shortcut above.';
+    $('#api-settings').open = false; $('#keyboard-settings').open = false;
+    $('#shortcut-label').textContent = setShortcutLabel(status.shortcut);
     $('#settings-dialog').showModal();
   } catch (error) { toast(error.message, true); }
 }
-$('#search-icon').innerHTML = icon('search'); $('#new-tab').innerHTML = icon('plus'); $('#settings-button').innerHTML = icon('settings'); $('#close-preview').innerHTML = icon('close'); $('#close-settings').innerHTML = icon('close'); $('#downloads-button').innerHTML = icon('folder') + 'Downloads';
+$('#search-icon').innerHTML = icon('search'); $('#new-tab').innerHTML = icon('plus'); $('#settings-button').innerHTML = icon('settings'); $('#close-preview').innerHTML = icon('close'); $('#close-settings').innerHTML = icon('close'); $('#downloads-button').innerHTML = icon('folder') + 'Open folder';
 $('#manual-search-button .button-icon').innerHTML = icon('search');
 $('#images-module').innerHTML = icon('image'); $('#mystery-module').innerHTML = icon('mystery');
 $('#images-module').addEventListener('click', () => focusSearch());
