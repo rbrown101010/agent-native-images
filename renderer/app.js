@@ -123,12 +123,14 @@ function render() {
   renderTabs();
   const tab = current(); $('#filters').hidden = !tab;
   for (const filter of document.querySelectorAll('[data-kind]')) { const active = filter.dataset.kind === tab?.kind; filter.classList.toggle('active', active); filter.setAttribute('aria-pressed', String(active)); }
-  $('#manual-search-button').hidden = !tab;
-  $('#ai-search-button').hidden = !tab;
+  renderSearchAction();
+  renderContent();
+}
+function renderSearchAction() {
+  const tab = current();
+  $('#ai-search-button').hidden = !tab?.draft.trim();
   $('#ai-search-button').disabled = Boolean(tab?.planning);
   $('#ai-search-button .button-label').textContent = tab?.planning ? 'Thinking…' : 'AI search';
-  $('#ai-search-button .button-icon').innerHTML = tab?.planning ? '<span class="spinner"></span>' : icon('cut');
-  renderContent();
 }
 function renderContent() {
   const content = $('#content'); const scroll = content.scrollTop; content.replaceChildren();
@@ -250,7 +252,6 @@ async function openSettings() {
   } catch (error) { toast(error.message, true); }
 }
 $('#search-icon').innerHTML = icon('search'); $('#new-tab').innerHTML = icon('plus'); $('#settings-button').innerHTML = icon('settings'); $('#close-preview').innerHTML = icon('close'); $('#close-settings').innerHTML = icon('close'); $('#downloads-button').innerHTML = icon('folder') + 'Open folder';
-$('#manual-search-button .button-icon').innerHTML = icon('search');
 $('#images-module').innerHTML = icon('image'); $('#mystery-module').innerHTML = icon('mystery');
 $('#images-module').addEventListener('click', () => focusSearch());
 $('#mystery-module').addEventListener('click', () => toast('coming soon'));
@@ -262,7 +263,7 @@ $('#new-tab').addEventListener('click', newTab); $('#saved-tab').addEventListene
 $('#downloads-button').addEventListener('click', () => api.downloads().catch(error => toast(error.message, true)));
 $('#close-preview').addEventListener('click', () => { $('#preview-dialog').close(); preview = null; }); $('#preview-dialog').addEventListener('close', () => { preview = null; });
 $('#close-settings').addEventListener('click', () => $('#settings-dialog').close());
-$('#search-input').addEventListener('input', event => { if (current()) { const tab = current(); tab.draft = event.target.value; if (tab.planning) { cancelPlan(tab); render(); } } else { savedQuery = event.target.value; renderContent(); } });
+$('#search-input').addEventListener('input', event => { if (current()) { const tab = current(); tab.draft = event.target.value; if (tab.planning) { cancelPlan(tab); render(); } else renderSearchAction(); } else { savedQuery = event.target.value; renderContent(); } });
 $('#search-form').addEventListener('submit', event => { event.preventDefault(); submitSearch(); });
 $('#ai-search-button').addEventListener('click', () => aiSearch());
 $('#filters').addEventListener('click', event => { const node = event.target.closest('[data-kind]'); if (!node || !current()) return; const tab = current(); tab.kind = node.dataset.kind; if (tab.draft.trim()) submitSearch(tab); else render(); });
