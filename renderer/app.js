@@ -7,6 +7,9 @@ const paths = {
   transparent: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/><path d="M3 3h6v6H3zM9 9h6v6H9zM15 3h6v6h-6zM3 15h6v6H3zM15 15h6v6h-6z" fill="currentColor" stroke="none" opacity=".4"/>',
   icons: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><circle cx="17.5" cy="6.5" r="3.5"/><path d="m6.5 14 4 7h-8l4-7Z"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   plus: '<path d="M12 5v14M5 12h14"/>', close: '<path d="m6 6 12 12M6 18 18 6"/>',
+  generate: '<path d="M4 5h8M4 5v15h15v-8M4 16l5-5 7 9M17 2l1.3 3.7L22 7l-3.7 1.3L17 12l-1.3-3.7L12 7l3.7-1.3L17 2Z"/>',
+  attach: '<path d="M12 5v14M5 12h14"/>',
+  arrowUp: '<path d="M12 19V5m-6 6 6-6 6 6"/>',
   mystery: '<path d="m12 3 8 9-8 9-8-9 8-9Z"/><path d="m12 7 4.5 5-4.5 5-4.5-5L12 7Z"/><path d="M12 1v2m0 18v2M1 12h3m16 0h3"/>',
   left: '<path d="m14 6-6 6 6 6"/>', right: '<path d="m10 6 6 6-6 6"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M15 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
@@ -23,6 +26,7 @@ function icon(name) { return `<svg viewBox="0 0 24 24" fill="none" stroke="curre
 function element(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; }
 function button(label, iconName, callback, className = '') { const node = element('button', className); node.type = 'button'; if (iconName) node.innerHTML = icon(iconName); if (label) node.append(document.createTextNode(label)); node.addEventListener('click', callback); return node; }
 function freshTab() { return { id: crypto.randomUUID(), query: '', draft: '', browsingSaved: true, kind: 'all', items: [], page: 0, loading: false, planning: false, planToken: '', error: '', token: '', hasMore: false }; }
+let activeModule = 'search';
 let tabs = [freshTab()], activeId = tabs[0].id, saved = [], savedQuery = '', recent = [], preview = null, toastTimer;
 const busy = new Map();
 try {
@@ -33,7 +37,7 @@ function current() { return tabs.find(tab => tab.id === activeId); }
 function persist() {
   try { localStorage.setItem('image-session', JSON.stringify({ tabs: tabs.map(tab => ({ ...tab, items: tab.items.slice(0, 120), loading: false, planning: false, planToken: '', token: '' })), activeId: activeId === 'saved' ? tabs[0].id : activeId, recent })); } catch {}
 }
-function focusSearch(select = true) { const input = $('#search-input'); input.focus(); if (select) input.select(); }
+function focusSearch(select = true) { if (activeModule === 'generator') { $('#generation-prompt').focus(); return; } const input = $('#search-input'); input.focus(); if (select) input.select(); }
 function toast(text, error = false) { clearTimeout(toastTimer); const node = $('#toast'); node.textContent = text; node.className = error ? 'error' : ''; node.hidden = false; toastTimer = setTimeout(() => { node.hidden = true; }, error ? 8000 : 2800); }
 function renderTabs() {
   const container = $('#tabs'); container.replaceChildren();
@@ -48,7 +52,15 @@ function renderTabs() {
   }
   const savedTab = $('#saved-tab'); savedTab.innerHTML = icon('bookmark'); savedTab.title = `Saved images (${saved.length}) · ⌘9`; savedTab.setAttribute('aria-label', `Saved images (${saved.length})`); savedTab.classList.toggle('active', activeId === 'saved'); savedTab.setAttribute('aria-selected', String(activeId === 'saved'));
 }
+function selectModule(module) {
+  activeModule = module; closeFilters();
+  $('#search-workspace').hidden = module !== 'search'; $('#generator-workspace').hidden = module !== 'generator';
+  for (const [id, name] of [['search-module', 'search'], ['generate-module', 'generator']]) { const node = $('#' + id); node.classList.toggle('active', module === name); if (module === name) node.setAttribute('aria-current', 'page'); else node.removeAttribute('aria-current'); }
+  if (module === 'generator') window.generator?.refresh();
+  focusSearch(false);
+}
 function selectTab(id) {
+  if (activeModule !== 'search') selectModule('search');
   closeFilters();
   const previous = current(); if (previous) previous.scrollTop = $('#content').scrollTop;
   activeId = id;
@@ -209,6 +221,7 @@ function actionButtons(item, tab, large) {
   for (const [type, label, glyph] of actions) {
     const action = button(label, glyph, () => perform(type, item, tab)); action.disabled = Boolean(busy.get(itemKey(item))) || (type === 'removebg' && item.cutout); action.title = type === 'copy' ? 'Copy image and keep in Saved · ⌘C' : type === 'save' ? 'Save to Downloads and library · ⌘S' : type === 'undo' ? 'Return to the original image' : 'Remove background with remove.bg · B'; row.append(action);
   }
+  const addToGenerator = button('', 'generate', () => window.generator.importSearch(item)); addToGenerator.title = 'Add to image generator'; addToGenerator.setAttribute('aria-label', 'Add to image generator'); addToGenerator.className = 'add-to-generator'; row.append(addToGenerator);
   if (large && item.source) row.append(button('Source', 'external', () => api.source(item.source).catch(error => toast(error.message, true))));
   if (large && !tab) row.append(button('Remove from saved', null, async () => { try { await api.forget(item.id); $('#preview-dialog').close(); preview = null; await refreshSaved(); toast('Removed from library. Downloads are kept.'); } catch (error) { toast(error.message, true); } }));
   return row;
@@ -229,9 +242,9 @@ async function perform(type, item, tab) {
   } catch (error) { toast(error.message, true); }
   finally { busy.delete(key); renderContent(); updatePreview(); persist(); }
 }
-function openPreview(item, tab) {
-  const items = visibleImages();
-  preview = { item, tab, items: [...items] }; updatePreview(); $('#preview-dialog').showModal();
+function openPreview(item, tab, imageList, generator = false) {
+  const items = imageList || visibleImages();
+  preview = { item, tab, items: [...items], generator }; updatePreview(); $('#preview-dialog').showModal();
 }
 function previewItems() { return preview?.items || preview?.tab?.items || (preview ? [preview.item] : []); }
 function navigatePreview(direction) {
@@ -255,7 +268,7 @@ function updatePreview() {
   $('#preview-image').src = item.id ? item.previewUrl : item.sourceUrl; $('#preview-image').alt = item.title || item.name;
   $('#preview-image').onerror = () => { if (item.thumbnailUrl && $('#preview-image').src !== item.thumbnailUrl) $('#preview-image').src = item.thumbnailUrl; };
   $('.preview-image-wrap').classList.toggle('cutout', Boolean(item.cutout));
-  const actions = actionButtons(item, tab, true); $('#preview-actions').replaceChildren(...actions.childNodes);
+  const actions = preview.generator ? window.generator.previewActions(item) : actionButtons(item, tab, true); $('#preview-actions').replaceChildren(...actions.childNodes);
 }
 async function refreshSaved() { saved = await api.library(); renderTabs(); if (activeId === 'saved' || current()?.browsingSaved) renderContent(); }
 function setShortcutLabel(shortcut) { return shortcut.replace('CommandOrControl', '⌘').replace('Control', '⌃').replace('Shift', '⇧').replace('Alt', '⌥').replaceAll('+', ''); }
@@ -270,6 +283,8 @@ async function openSettings() {
   } catch (error) { toast(error.message, true); }
 }
 $('#search-icon').innerHTML = icon('search'); $('#new-tab').innerHTML = icon('plus'); $('#settings-button').innerHTML = icon('settings'); $('#close-preview').innerHTML = icon('close'); $('#close-settings').innerHTML = icon('close'); $('#downloads-button').innerHTML = icon('folder') + 'Open folder';
+$('#search-module').innerHTML = icon('search'); $('#generate-module').innerHTML = icon('generate');
+$('#search-module').addEventListener('click', () => selectModule('search')); $('#generate-module').addEventListener('click', () => selectModule('generator'));
 $('#previous-image').innerHTML = icon('left'); $('#next-image').innerHTML = icon('right');
 $('#previous-image').addEventListener('click', () => navigatePreview(-1));
 $('#next-image').addEventListener('click', () => navigatePreview(1));
@@ -327,6 +342,11 @@ document.addEventListener('keydown', event => {
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); navigatePreview(event.key === 'ArrowLeft' ? -1 : 1); return; }
     if (command && ['c', 's'].includes(event.key.toLowerCase())) { event.preventDefault(); perform(event.key.toLowerCase() === 'c' ? 'copy' : 'save', preview.item, preview.tab); }
     if (event.key.toLowerCase() === 'b') { event.preventDefault(); perform('removebg', preview.item, preview.tab); }
+    return;
+  }
+  if (activeModule === 'generator') {
+    if (event.key === 'Escape') { event.preventDefault(); api.hide(); }
+    if (command && event.key === ',') { event.preventDefault(); openSettings(); }
     return;
   }
   if (command && event.key === 'Enter' && current()) { event.preventDefault(); if (!event.repeat) aiSearch(); return; }

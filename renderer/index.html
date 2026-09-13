@@ -9,12 +9,29 @@
 </head>
 <body>
   <header class="titlebar"><span class="brand">Agent Native</span><button id="settings-button" class="icon-button" aria-label="Settings" title="Settings · ⌘,"></button></header>
-  <div class="module-sidebar" aria-hidden="true"></div>
-  <section class="workspace" aria-label="Images workspace">
+  <nav class="module-sidebar" aria-label="Tools"><button id="search-module" class="module-button active" title="Image search" aria-label="Image search" aria-current="page"></button><button id="generate-module" class="module-button" title="Image generator" aria-label="Image generator"></button></nav>
+  <section id="search-workspace" class="workspace" aria-label="Images workspace">
   <nav class="tabbar" aria-label="Search tabs"><div id="tabs" role="tablist"></div><button id="new-tab" class="icon-button" title="New search · ⌘T" aria-label="New search tab"></button><button id="saved-tab" role="tab" aria-selected="false"></button></nav>
   <form id="search-form" autocomplete="off"><span id="search-icon"></span><input id="search-input" type="search" placeholder="Search Google Images…" aria-label="Search Google Images" maxlength="6000" autofocus><button id="ai-search-button" type="button" title="AI search · ⌘Enter" aria-label="AI search" aria-keyshortcuts="Meta+Enter" hidden><span class="button-label">AI search</span><span class="ai-shortcut" aria-hidden="true">⌘Enter</span></button><div id="filters"><button id="filter-button" class="icon-button" type="button" aria-label="Filter images" title="Filter images" aria-haspopup="menu" aria-expanded="false" aria-controls="filter-menu"></button><div id="filter-menu" role="menu" aria-label="Image type" hidden><button type="button" role="menuitemradio" data-kind="all" aria-checked="true">All</button><button type="button" role="menuitemradio" data-kind="transparent" aria-checked="false">Transparent</button><button type="button" role="menuitemradio" data-kind="icons" aria-checked="false">Icons</button></div></div></form>
   <div class="toolbar"><span id="result-count" aria-live="polite"></span></div>
   <main id="content" tabindex="-1"></main>
+  </section>
+  <section id="generator-workspace" class="workspace" aria-label="Image generator" hidden>
+    <div id="generation-grid" tabindex="-1" aria-label="Generated and imported images"></div>
+    <form id="generation-form" autocomplete="off">
+      <div id="reference-list" aria-label="Reference images" hidden></div>
+      <div id="mention-menu" role="listbox" aria-label="Saved image references" hidden></div>
+      <textarea id="generation-prompt" placeholder="Describe an image…" aria-label="Image prompt" maxlength="6000" rows="2" aria-autocomplete="list" aria-controls="mention-menu" aria-expanded="false"></textarea>
+      <div class="generation-controls">
+        <button id="attach-reference" class="icon-button" type="button" title="Add reference images" aria-label="Add reference images"></button>
+        <button id="mention-reference" class="icon-button" type="button" title="Mention a saved image" aria-label="Mention a saved image">@</button>
+        <span class="generation-model" title="Generated with GPT Image 2 through AI Gateway">GPT Image 2</span>
+        <select id="generation-size" aria-label="Image aspect ratio" title="Aspect ratio"><option value="1024x1024">1:1</option><option value="1536x1024">3:2</option><option value="1024x1536">2:3</option></select>
+        <select id="generation-quality" aria-label="Image quality" title="Quality"><option value="low">Fast</option><option value="medium" selected>Standard</option><option value="high">High</option></select>
+        <button id="generate-button" type="submit" aria-label="Generate image" title="Generate image · Enter" disabled></button>
+      </div>
+      <input id="reference-file" type="file" accept="image/*,.avif,.heic,.tiff,.svg" multiple hidden>
+    </form>
   </section>
   <div id="toast" role="status" hidden></div>
   <dialog id="preview-dialog"><div class="preview-header"><div><strong id="preview-title"></strong><span id="preview-meta"></span></div><nav id="preview-navigation" aria-label="Image navigation"><button id="previous-image" class="icon-button" aria-label="Previous image" title="Previous image · ←"></button><span id="preview-position" aria-live="polite"></span><button id="next-image" class="icon-button" aria-label="Next image" title="Next image · →"></button></nav><button class="icon-button" id="close-preview" aria-label="Close preview"></button></div><div class="preview-image-wrap"><img id="preview-image" alt=""></div><div id="preview-actions"></div></dialog>
@@ -50,5 +67,6 @@
   </dialog>
   <script src="search-queries.js"></script>
   <script src="app.js"></script>
+  <script src="generator.js"></script>
 </body>
 </html>

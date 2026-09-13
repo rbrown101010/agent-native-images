@@ -1,6 +1,6 @@
 # Agent Native Images
 
-A small desktop launcher for finding images fast. Google Images search through Serper, independent search tabs, native clipboard, Downloads, and one-click background removal through remove.bg.
+A small desktop launcher for finding images fast. Google Images search through Serper, independent search tabs, native clipboard, Downloads, one-click background removal through remove.bg, and a parallel GPT Image 2 generator through Vercel AI Gateway.
 
 Built with Electron and plain JavaScript. No web server, framework build, account, or hosted backend. The charcoal palette and Geist typography follow Agent Native's visual style.
 
@@ -37,6 +37,19 @@ Built with Electron and plain JavaScript. No web server, framework build, accoun
 | Escape | Close preview or hide launcher |
 | ⌘, | Settings |
 
+## Image generator
+
+Use the image-with-sparkle icon below Search in the left rail. The generator fills the workspace with a minimal image grid and keeps the prompt box at the bottom.
+
+- Type a prompt and press **Enter** to generate; **Shift Enter** adds a line. Keep submitting prompts while earlier images generate. Four jobs can run concurrently, with additional jobs queued. Newest submissions stay at the top left even when results finish out of order.
+- Attach or paste an image, drop files on the prompt, or drag a grid image into it. Up to eight reference images are sent with the prompt to GPT Image 2.
+- Type **@** to choose an image from Saved. Selected references appear above the prompt and can be removed individually.
+- Choose square, landscape, or portrait, with Fast, Standard, or High quality.
+- Hover any search result or saved image and use **Add to image generator** to keep it in the generator grid. Imported and generated images both support reference reuse, previews, Copy, and Save.
+- The grid and prompt draft persist locally. Failed jobs show their error and an explicit Retry action. Jobs interrupted by quitting are not automatically resubmitted.
+
+Generation uses `openai/gpt-image-2` by default, configurable with `IMAGE_MODEL`. Prompts and attached references are sent through Vercel AI Gateway and use its credits. Generated images are kept locally; **Save** additionally puts them in Downloads.
+
 ## Run locally
 
 Requires Node.js 22.12 or later. macOS is the verified platform.
@@ -67,6 +80,8 @@ The Apple Silicon app is created at `release/Agent Native Images-darwin-arm64/Ag
 ```sh
 npm test
 npm run test:batch
+node test/reuse-desktop.cjs
+node test/generator-desktop.cjs
 ```
 
 The batch desktop test checks parallel tab creation, card layout, and AI completion/cancellation using mocked providers, without API charges.
@@ -86,6 +101,8 @@ Add `TEST_REMOVE_BG=1` to also test background removal and consume a remove.bg c
 - `main.cjs`: native window, global shortcut, API requests, clipboard, secure credentials, and restricted IPC.
 - `ai-search.cjs`: lightweight AI query planning with a strict semicolon-only prompt.
 - `image-formats.cjs`: asynchronous format conversion, SVG rasterization, and orientation handling.
+- `image-generation.cjs`: Gateway generation and reference editing requests.
+- `generation-store.cjs`: persistent gallery and bounded parallel job queue.
 - `library.cjs`: serialized library writes, collision-safe filenames, and Downloads.
 - `preload.cjs`: narrow context-isolated renderer bridge.
 - `renderer/`: the local interface. All remote text is inserted as text, not HTML.

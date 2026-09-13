@@ -4,6 +4,8 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { randomUUID } = require('node:crypto');
 const { Library } = require('./library.cjs');
+const { GenerationStore } = require('./generation-store.cjs');
+const { generateImage, IMAGE_MODEL } = require('./image-generation.cjs');
 const { planSearches, DEFAULT_MODEL } = require('./ai-search.cjs');
 const { normalizeImage } = require('./image-formats.cjs');
 
@@ -13,7 +15,7 @@ const testRoot = process.argv.find(arg => arg.startsWith('--test-data='))?.split
 if (testMode && testRoot) app.setPath('userData', testRoot);
 else app.setPath('userData', path.join(app.getPath('appData'), 'Agent Native Images'));
 protocol.registerSchemesAsPrivileged([{ scheme: 'asset', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
-let window, tray, library, quitting = false, shortcutActive = false;
+let window, tray, library, generations, quitting = false, shortcutActive = false;
 let secrets = {}, preferences = { shortcut: 'CommandOrControl+Shift+Space', launchAtLogin: false };
 const assets = new Map();
 const assetJobs = new Map();
@@ -112,8 +114,32 @@ async function action({ type, item, query }) {
   window?.webContents.send('library-changed');
   return entry;
 }
+async function importGeneration(value) {
+  let asset;
+  if (value?.bytes) {
+    const bytes = Buffer.from(value.bytes);
+    if (!bytes.length || bytes.length > 35 * 1024 * 1024) throw new Error('Use an image smaller than 35 MB.');
+    const name = String(value.name || 'Reference image').slice(0, 160);
+    asset = await storeAsset(bytes, { title: name, query: name.replace(/\.[^.]+$/, ''), sourceUrl: `imported:${randomUUID()}`, cutout: false });
+  } else {
+    const original = await resolveAsset(value?.item || {});
+    asset = { ...original, query: value.item.query || value.item.name || original.title, name: value.item.name };
+  }
+  return generations.import(asset);
+}
+async function startGeneration(value) {
+  if (!secrets.gateway) throw new Error('Add your AI Gateway key in Settings → API Settings.');
+  const refs = value?.references || [];
+  if (!Array.isArray(refs) || refs.length > 8) throw new Error('Use up to 8 reference images.');
+  const references = await Promise.all(refs.map(async ref => {
+    if (!ref || !uuid.test(ref.id)) throw new Error('Choose an image from your library or upload a reference.');
+    const asset = await resolveAsset({ id: ref.id });
+    return { id: asset.id, name: String(ref.name || asset.title || 'Reference').slice(0, 160) };
+  }));
+  return generations.add({ prompt: value.prompt, size: value.size, quality: value.quality, references });
+}
 function status() {
-  return { serper: Boolean(secrets.serper), removebg: Boolean(secrets.removebg), gateway: Boolean(secrets.gateway), aiModel: process.env.AI_MODEL || DEFAULT_MODEL, ...preferences, shortcutActive, downloads: app.getPath('downloads') };
+  return { serper: Boolean(secrets.serper), removebg: Boolean(secrets.removebg), gateway: Boolean(secrets.gateway), aiModel: process.env.AI_MODEL || DEFAULT_MODEL, imageModel: process.env.IMAGE_MODEL || IMAGE_MODEL, ...preferences, shortcutActive, downloads: app.getPath('downloads') };
 }
 async function saveSecrets(value) {
   if (!safeStorage.isEncryptionAvailable()) throw new Error('Keychain encryption is unavailable. Unlock your Mac and try again.');
@@ -163,6 +189,19 @@ async function start() {
   library = new Library(root, testMode ? path.join(root, 'Downloads') : app.getPath('downloads'));
   await library.init();
   for (const entry of library.list()) assets.set(entry.id, entry);
+  generations = new GenerationStore(root, {
+    changed: () => window?.webContents.send('generations-changed'),
+    generate: async job => {
+      const references = await Promise.all(job.references.map(ref => fs.readFile(imagePath(ref.id))));
+      const total = references.reduce((sum, bytes) => sum + bytes.length, 0);
+      if (total > 35 * 1024 * 1024) throw new Error('Reference images total more than 35 MB. Use fewer or smaller images.');
+      const names = job.references.map((ref, index) => `Image ${index + 1}: ${ref.name}`).join('\n');
+      const prompt = names ? `${job.prompt}\n\nAttached reference images, in order:\n${names}` : job.prompt;
+      const bytes = await generateImage({ ...job, prompt, references }, { key: secrets.gateway, model: process.env.IMAGE_MODEL || IMAGE_MODEL });
+      return storeAsset(bytes, { sourceUrl: `generated:${job.id}`, title: job.prompt, query: job.prompt, generated: true, model: process.env.IMAGE_MODEL || IMAGE_MODEL, cutout: false });
+    },
+  });
+  await generations.init();
   try { secrets = JSON.parse(safeStorage.decryptString(await fs.readFile(secretPath))); } catch (error) { if (error.code !== 'ENOENT') console.error('Credentials unavailable; re-enter keys in Settings.'); }
   if (process.env.AI_GATEWAY_API_KEY && process.env.AI_GATEWAY_API_KEY !== secrets.gateway) await saveSecrets({ gateway: process.env.AI_GATEWAY_API_KEY });
   try { preferences = { ...preferences, ...JSON.parse(await fs.readFile(settingsPath, 'utf8')) }; } catch {}
@@ -182,6 +221,9 @@ async function start() {
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', event => event.preventDefault());
   window.on('close', event => { if (!quitting) { event.preventDefault(); window.hide(); } });
+  handle('generations', () => generations.list());
+  handle('generate-image', startGeneration); handle('import-generation', importGeneration);
+  handle('retry-generation', id => generations.retry(id)); handle('remove-generation', id => generations.remove(id));
   handle('search', search); handle('action', action); handle('library', () => library.list());
   handle('plan-searches', prompt => planSearches(prompt, { key: secrets.gateway, model: process.env.AI_MODEL || DEFAULT_MODEL }));
   handle('status', status); handle('configure', configure);
