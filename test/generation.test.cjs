@@ -10,9 +10,9 @@ const waitFor = async fn => { for (let n = 0; n < 300; n++) { if (fn()) return; 
 test('generation and reference edits use Gateway with bounded input and no automatic retries', async () => {
   const requests = [];
   const fetchImpl = async (url, options) => { requests.push({ url, body: JSON.parse(options.body) }); return new Response(JSON.stringify({ data: [{ b64_json: Buffer.from('image').toString('base64') }] })); };
-  await generateImage({ prompt: 'a circle' }, { key: 'secret', fetchImpl });
+  await generateImage({ prompt: 'a circle', size: '1536x864' }, { key: 'secret', fetchImpl });
   const result = await generateImage({ prompt: 'a purple circle', references: [Buffer.from('reference')] }, { key: 'secret', fetchImpl });
-  assert.equal(result.toString(), 'image'); assert.match(requests[0].url, /images\/generations$/); assert.match(requests[1].url, /images\/edits$/);
+  assert.equal(result.toString(), 'image'); assert.equal(requests[0].body.size, '1536x864'); assert.match(requests[0].url, /images\/generations$/); assert.match(requests[1].url, /images\/edits$/);
   assert.equal(requests[1].body.images[0].image_url, 'data:image/png;base64,cmVmZXJlbmNl');
   await assert.rejects(generateImage({ prompt: 'x', references: Array(9).fill(Buffer.from('x')) }, { key: 'secret', fetchImpl }), /8 reference/);
   let calls = 0;

@@ -1,5 +1,5 @@
 const IMAGE_MODEL = 'openai/gpt-image-2';
-const SIZES = new Set(['1024x1024', '1536x1024', '1024x1536']);
+const SIZES = new Set(['1024x1024', '1536x1024', '1024x1536', '1536x864', '864x1536', '1536x1152', '1152x1536', '1024x1280', '1280x1024', '1792x768']);
 const QUALITIES = new Set(['low', 'medium', 'high']);
 
 async function generateImage({ prompt, references = [], size = '1024x1024', quality = 'medium' }, { key, model = IMAGE_MODEL, fetchImpl = fetch, signal } = {}) {

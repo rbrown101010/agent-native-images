@@ -19,6 +19,7 @@
   <section id="generator-workspace" class="workspace" aria-label="Image generator" hidden>
     <div id="generation-grid" tabindex="-1" aria-label="Generated and imported images"></div>
     <form id="generation-form" autocomplete="off">
+      <button id="clear-generation" type="button" title="Clear prompt and references · ⌘Backspace" aria-label="Clear prompt and references">Clear</button>
       <div id="reference-list" aria-label="Reference images" hidden></div>
       <div id="mention-menu" role="listbox" aria-label="Saved image references" hidden></div>
       <textarea id="generation-prompt" placeholder="Describe an image…" aria-label="Image prompt" maxlength="6000" rows="2" aria-autocomplete="list" aria-controls="mention-menu" aria-expanded="false"></textarea>
@@ -26,7 +27,7 @@
         <button id="attach-reference" class="icon-button" type="button" title="Add reference images" aria-label="Add reference images"></button>
         <button id="mention-reference" class="icon-button" type="button" title="Mention a saved image" aria-label="Mention a saved image">@</button>
         <span class="generation-model" title="Generated with GPT Image 2 through AI Gateway">GPT Image 2</span>
-        <select id="generation-size" aria-label="Image aspect ratio" title="Aspect ratio"><option value="1024x1024">1:1</option><option value="1536x1024">3:2</option><option value="1024x1536">2:3</option></select>
+        <select id="generation-size" aria-label="Image aspect ratio" title="Aspect ratio"><option value="1024x1024">1:1</option><option value="1536x864">16:9</option><option value="864x1536">9:16</option><option value="1536x1152">4:3</option><option value="1152x1536">3:4</option><option value="1536x1024">3:2</option><option value="1024x1536">2:3</option><option value="1024x1280">4:5</option><option value="1280x1024">5:4</option><option value="1792x768">21:9</option></select>
         <select id="generation-quality" aria-label="Image quality" title="Quality"><option value="low">Fast</option><option value="medium" selected>Standard</option><option value="high">High</option></select>
         <button id="generate-button" type="submit" aria-label="Generate image" title="Generate image · Enter" disabled></button>
       </div>

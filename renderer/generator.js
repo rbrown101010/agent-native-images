@@ -1,5 +1,5 @@
 (() => {
-  let entries = [], references = [], revision = 0, uploadCount = 0, submitting = false;
+  let entries = [], references = [], revision = 0, uploadCount = 0, referenceEpoch = 0;
   let mentionStart = -1, mentionIndex = 0, mentionOptions = [];
   const prompt = $('#generation-prompt'), form = $('#generation-form');
   const readyImages = () => entries.filter(entry => entry.status === 'ready').map(entry => entry.asset);
@@ -8,10 +8,12 @@
     const draft = JSON.parse(localStorage.getItem('generation-draft'));
     if (draft) { prompt.value = draft.prompt || ''; references = (draft.references || []).slice(0, 8); $('#generation-size').value = draft.size || '1024x1024'; $('#generation-quality').value = draft.quality || 'medium'; }
   } catch {}
+  for (const ref of references) prompt.value = prompt.value.replaceAll(`@${ref.name}`, '');
+  if (!prompt.value.trim()) prompt.value = '';
   function persistDraft() {
     localStorage.setItem('generation-draft', JSON.stringify({ prompt: prompt.value, references, size: $('#generation-size').value, quality: $('#generation-quality').value }));
   }
-  function updateSubmit() { $('#generate-button').disabled = !prompt.value.trim() || uploadCount > 0 || submitting; }
+  function updateSubmit() { $('#generate-button').disabled = !prompt.value.trim() || uploadCount > 0; $('#clear-generation').disabled = !prompt.value && !references.length; }
   async function refresh() {
     const request = ++revision;
     try { const list = await api.generations(); if (request !== revision) return; entries = list; renderGrid(); }
@@ -69,12 +71,14 @@
     catch (error) { toast(error.message, true); }
   }
   async function upload(files) {
+    const epoch = referenceEpoch;
     const list = [...files];
     for (const file of list) {
+      if (epoch !== referenceEpoch) break;
       if (references.length >= 8) { toast('Use up to 8 reference images.', true); break; }
       if (file.size > 35 * 1024 * 1024) { toast(`${file.name} is too large. Use an image smaller than 35 MB.`, true); continue; }
       uploadCount++; renderReferences();
-      try { const entry = await api.importGeneration({ bytes: new Uint8Array(await file.arrayBuffer()), name: file.name }); addReference(entry.asset); await refresh(); }
+      try { const entry = await api.importGeneration({ bytes: new Uint8Array(await file.arrayBuffer()), name: file.name }); if (epoch === referenceEpoch) addReference(entry.asset); await refresh(); }
       catch (error) { toast(error.message, true); }
       finally { uploadCount--; renderReferences(); }
     }
@@ -100,20 +104,27 @@
   function chooseMention(index) {
     const item = mentionOptions[index]; if (!item || !addReference(item)) return;
     const start = mentionStart, end = prompt.selectionStart;
-    prompt.setRangeText(`@${nameOf(item)} `, start, end, 'end'); closeMentions(); persistDraft(); updateSubmit(); prompt.focus();
+    prompt.setRangeText('', start, end, 'end'); closeMentions(); persistDraft(); updateSubmit(); prompt.focus();
   }
   async function submit(event) {
-    event.preventDefault(); if (!prompt.value.trim() || submitting || uploadCount) return;
+    event.preventDefault(); if (!prompt.value.trim() || uploadCount) return;
     closeMentions();
     const snapshot = { prompt: prompt.value.trim(), references: references.map(ref => ({ id: ref.id, name: ref.name })), size: $('#generation-size').value, quality: $('#generation-quality').value };
-    const originalText = prompt.value, originalRefs = references.map(ref => ref.id).join(','); submitting = true; updateSubmit();
     try {
       await api.generateImage(snapshot);
-      if (prompt.value === originalText && references.map(ref => ref.id).join(',') === originalRefs) { prompt.value = ''; references = []; renderReferences(); }
       persistDraft(); await refresh(); $('#generation-grid').scrollTop = 0;
     } catch (error) { toast(error.message, true); }
-    finally { submitting = false; updateSubmit(); prompt.focus(); }
+    finally { updateSubmit(); if (activeModule === 'generator') prompt.focus(); }
   }
+  function clearComposer() {
+    referenceEpoch++; prompt.value = ''; references = []; closeMentions(); renderReferences(); persistDraft(); prompt.focus();
+  }
+  $('#clear-generation').addEventListener('click', clearComposer);
+  document.addEventListener('keydown', event => {
+    if (activeModule === 'generator' && !document.querySelector('dialog[open]') && (event.metaKey || event.ctrlKey) && event.key === 'Backspace') {
+      event.preventDefault(); event.stopPropagation(); clearComposer();
+    }
+  });
   function previewActions(item) {
     const actions = element('div');
     actions.append(button('Use as reference', 'plus', () => { if (addReference(item)) { $('#preview-dialog').close(); selectModule('generator'); } }), button('Copy', 'copy', () => perform('copy', item, null)), button('Save', 'save', () => perform('save', item, null)));

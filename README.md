@@ -41,10 +41,10 @@ Built with Electron and plain JavaScript. No web server, framework build, accoun
 
 Use the image-with-sparkle icon below Search in the left rail. The generator fills the workspace with a minimal image grid and keeps the prompt box at the bottom.
 
-- Type a prompt and press **Enter** to generate; **Shift Enter** adds a line. Keep submitting prompts while earlier images generate. Four jobs can run concurrently, with additional jobs queued. Newest submissions stay at the top left even when results finish out of order.
+- Type a prompt and press **Enter** to generate; **Shift Enter** adds a line. The prompt and reference chips stay in place after submitting, ready to make another variation. Press Enter again for another independent generation. **Clear** (top right of the composer) or **⌘Backspace** clears only the prompt and references. Keep submitting prompts while earlier images generate. Four jobs can run concurrently, with additional jobs queued. Newest submissions stay at the top left even when results finish out of order.
 - Attach or paste an image, drop files on the prompt, or drag a grid image into it. Up to eight reference images are sent with the prompt to GPT Image 2.
-- Type **@** to choose an image from Saved. Selected references appear above the prompt and can be removed individually.
-- Choose square, landscape, or portrait, with Fast, Standard, or High quality.
+- Type **@** to choose an image from Saved. Selected references appear as image-and-name chips above the prompt and can be removed individually; the typed @ mention is removed from the prompt.
+- Choose common ratios: 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3, 4:5, 5:4, or 21:9, with Fast, Standard, or High quality.
 - Hover any search result or saved image and use **Add to image generator** to keep it in the generator grid. Imported and generated images both support reference reuse, previews, Copy, and Save.
 - The grid and prompt draft persist locally. Failed jobs show their error and an explicit Retry action. Jobs interrupted by quitting are not automatically resubmitted.
 
