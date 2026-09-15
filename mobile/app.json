@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Agent Native Images",
+    "slug": "agent-native-images",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#171717",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "inc.agentnative.images.mobile"
+    },
+    "android": {
+      "package": "inc.agentnative.images.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#171717",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Agent Native Images uses your photos as references for image generation."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Agent Native Images saves images you keep to your photo library.",
+          "savePhotosPermission": "Agent Native Images saves images you keep to your photo library.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
+    ]
+  }
+}
