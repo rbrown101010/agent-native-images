@@ -43,7 +43,7 @@ export function Preview({ item, onClose, onDelete }: Props) {
               {item.source}
             </Text>
           ) : null}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.actions}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip} contentContainerStyle={styles.actions}>
             <Action label="Copy" busy={busy} onPress={run('Copy', copyImage)} />
             <Action label="Save" busy={busy} onPress={run('Save', saveToPhotos)} />
             <Action label="Library" busy={busy} onPress={run('Library', saveToLibrary)} />
@@ -107,7 +107,8 @@ const styles = StyleSheet.create({
   image: { width: '100%', height: 320, borderRadius: 12, backgroundColor: theme.subtle },
   title: { color: theme.ink, fontSize: 15, fontWeight: '600' },
   source: { color: theme.faint, fontSize: 12 },
-  actions: { gap: 8, paddingVertical: 4 },
+  strip: { flexGrow: 0, flexShrink: 0 },
+  actions: { gap: 8, paddingVertical: 4, alignItems: 'center' },
   action: {
     minWidth: 84,
     alignItems: 'center',

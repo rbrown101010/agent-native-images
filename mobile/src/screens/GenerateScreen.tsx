@@ -86,7 +86,7 @@ export function GenerateScreen() {
 
       <View style={styles.composer}>
         {references.length ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.refs}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip} contentContainerStyle={styles.refs}>
             {references.map(uri => (
               <Pressable key={uri} onPress={() => setReferences(current => current.filter(item => item !== uri))}>
                 <Image source={{ uri }} style={styles.ref} contentFit="cover" />
@@ -106,7 +106,7 @@ export function GenerateScreen() {
           accessibilityLabel="Image prompt"
         />
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip} contentContainerStyle={styles.chips}>
           {SIZES.map(option => (
             <Pressable
               key={option.size}
@@ -118,7 +118,7 @@ export function GenerateScreen() {
         </ScrollView>
 
         <View style={styles.controls}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip} contentContainerStyle={styles.chips}>
             {QUALITIES.map(option => (
               <Pressable
                 key={option.quality}
@@ -169,7 +169,8 @@ const styles = StyleSheet.create({
   caption: { color: theme.muted, fontSize: 11, paddingTop: 6 },
   empty: { color: theme.faint, textAlign: 'center', marginTop: 60, paddingHorizontal: 30, fontSize: 14 },
   composer: { borderTopWidth: 1, borderColor: theme.line, backgroundColor: theme.raised, padding: 12, gap: 8 },
-  refs: { gap: 8, paddingBottom: 4 },
+  strip: { flexGrow: 0, flexShrink: 0 },
+  refs: { gap: 8, paddingBottom: 4, alignItems: 'center' },
   ref: { width: 48, height: 48, borderRadius: 8, backgroundColor: theme.subtle },
   input: {
     backgroundColor: theme.bg,
@@ -181,7 +182,7 @@ const styles = StyleSheet.create({
     color: theme.ink,
     fontSize: 15
   },
-  chips: { gap: 6 },
+  chips: { gap: 6, alignItems: 'center' },
   chip: {
     paddingHorizontal: 10,
     paddingVertical: 6,

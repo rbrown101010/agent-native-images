@@ -117,7 +117,7 @@ export function SearchScreen() {
         </Pressable>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip} contentContainerStyle={styles.chips}>
         {KINDS.map(option => (
           <Pressable
             key={option.kind}
@@ -129,7 +129,7 @@ export function SearchScreen() {
       </ScrollView>
 
       {tabs.length > 1 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip} contentContainerStyle={styles.chips}>
           {tabs.map((tab, index) => (
             <Pressable
               key={tab.query}
@@ -208,7 +208,8 @@ const styles = StyleSheet.create({
     borderRadius: 12
   },
   aiText: { color: theme.focus, fontWeight: '700', fontSize: 14 },
-  chips: { gap: 8, paddingHorizontal: 14, paddingVertical: 10 },
+  strip: { flexGrow: 0, flexShrink: 0 },
+  chips: { gap: 8, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center' },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 7,
