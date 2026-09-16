@@ -8,6 +8,7 @@ const { GenerationStore } = require('./generation-store.cjs');
 const { generateImage, IMAGE_MODEL } = require('./image-generation.cjs');
 const { planSearches, DEFAULT_MODEL } = require('./ai-search.cjs');
 const { normalizeImage } = require('./image-formats.cjs');
+const { downloadImage } = require('./image-download.cjs');
 
 app.setName('Agent Native Images');
 const testMode = process.argv.includes('--test-mode');
@@ -64,6 +65,9 @@ async function search({ query, page = 1, kind = 'all' }) {
 }
 async function storeAsset(bytes, info) {
   const image = await normalizeImage(bytes);
+  return storeNormalizedAsset(image, info);
+}
+async function storeNormalizedAsset(image, info) {
   const id = randomUUID();
   await fs.writeFile(imagePath(id), image.bytes, { mode: 0o600 });
   const asset = { id, ...info, width: image.width, height: image.height, sourceFormat: image.sourceFormat, previewUrl: `asset://image/${id}` };
@@ -76,16 +80,18 @@ async function resolveAsset(item) {
   if (item.id && uuid.test(item.id)) {
     try { const cached = JSON.parse(await fs.readFile(imagePath(item.id) + '.json', 'utf8')); assets.set(cached.id, cached); return cached; } catch {}
   }
-  const url = publicURL(item.sourceUrl);
-  if (!assetJobs.has(url)) {
-    assetJobs.set(url, (async () => {
-      const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'image/*' }, signal: AbortSignal.timeout(25000) });
-      if (!response.ok) throw new Error(`The image host blocked this download (${response.status}). Try another result.`);
-      const bytes = await responseBytes(response);
-      return storeAsset(bytes, { sourceUrl: url, source: item.source || '', title: item.title || '', domain: item.domain || '', cutout: false });
-    })().catch(error => { assetJobs.delete(url); throw error; }));
+  const key = JSON.stringify([item.sourceUrl, item.previewUrl, item.thumbnailUrl]);
+  if (!assetJobs.has(key)) {
+    assetJobs.set(key, (async () => {
+      const { image, downloadedFrom, usedPreview } = await downloadImage(item, {
+        publicURL, responseBytes, fetchOriginal: (...args) => fetch(...args),
+        // Chromium shares the image view's HTTP cache, including cached previews.
+        fetchPreview: (...args) => net.fetch(...args),
+      });
+      return storeNormalizedAsset(image, { sourceUrl: item.sourceUrl || downloadedFrom, downloadedFrom, usedPreview, source: item.source || '', title: item.title || '', domain: item.domain || '', cutout: false });
+    })().catch(error => { assetJobs.delete(key); throw error; }));
   }
-  return assetJobs.get(url);
+  return assetJobs.get(key);
 }
 async function removeBackground(item) {
   if (!secrets.removebg) throw new Error('Add your remove.bg API key in Settings.');

@@ -237,7 +237,7 @@ async function perform(type, item, tab) {
       else { const cutoutTab = freshTab(); cutoutTab.browsingSaved = false; cutoutTab.query = item.query; cutoutTab.draft = item.query; cutoutTab.items = [{ ...result, key: crypto.randomUUID(), original: item, query: item.query }]; tabs.push(cutoutTab); selectTab(cutoutTab.id); if (preview) preview = { item: cutoutTab.items[0], tab: cutoutTab }; }
       toast('Background removed. Ready to copy or save.');
     } else {
-      await refreshSaved(); toast(type === 'copy' ? `${result.name} copied · kept in Saved` : `${result.name}.png saved to Downloads`);
+      await refreshSaved(); toast((type === 'copy' ? `${result.name} copied · kept in Saved` : `${result.name}.png saved to Downloads`) + (result.usedPreview ? ' · preview quality' : ''));
     }
   } catch (error) { toast(error.message, true); }
   finally { busy.delete(key); renderContent(); updatePreview(); persist(); }

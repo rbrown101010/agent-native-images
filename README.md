@@ -63,7 +63,7 @@ For AI search, add an [AI Gateway](https://vercel.com/ai-gateway) key in Setting
 
 Enter your own [Serper](https://serper.dev/) and [remove.bg](https://www.remove.bg/api) API keys in Settings. Both services may charge for use. Keys are encrypted locally using Electron safeStorage backed by the macOS Keychain. They never go into renderer code or this repository.
 
-AI search descriptions go to Vercel AI Gateway. Image searches go to Serper. Source images are fetched from their original host when copied, saved, or processed. Background removal uploads the selected image to remove.bg. Some image hosts block downloads; the app reports that failure rather than silently substituting a lower-resolution thumbnail. Unsupported source formats also produce a clear error.
+AI search descriptions go to Vercel AI Gateway. Image searches go to Serper. Source images are fetched from their original host when copied, saved, or processed. Background removal uploads the selected image to remove.bg. If the original returns a web page, blocks downloads, times out, or cannot be decoded, the app retries through its browser session/cache, then tries the displayed preview and thumbnail. Available image bytes are converted to PNG; the success message says “preview quality” when a preview was used. If neither the original nor preview is accessible, refresh the search and try again.
 
 Local data lives in `~/Library/Application Support/Agent Native Images/`. Keep that directory private: it contains your library, search session, image cache, and encrypted credentials.
 
