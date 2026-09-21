@@ -9,7 +9,7 @@
 </head>
 <body>
   <header class="titlebar"><span class="brand">Agent Native</span><button id="settings-button" class="icon-button" aria-label="Settings" title="Settings · ⌘,"></button></header>
-  <nav class="module-sidebar" aria-label="Tools"><button id="search-module" class="module-button active" title="Image search" aria-label="Image search" aria-current="page"></button><button id="generate-module" class="module-button" title="Image generator" aria-label="Image generator"></button></nav>
+  <nav class="module-sidebar" aria-label="Tools"><button id="search-module" class="module-button active" title="Image search" aria-label="Image search" aria-current="page"></button><button id="generate-module" class="module-button" title="Image generator" aria-label="Image generator"></button><button id="twitter-module" class="module-button" title="Social · X" aria-label="Social"></button><button id="notes-module" class="module-button" title="Notes · ⌘N for a new note" aria-label="Notes"></button></nav>
   <section id="search-workspace" class="workspace" aria-label="Images workspace">
   <nav class="tabbar" aria-label="Search tabs"><div id="tabs" role="tablist"></div><button id="new-tab" class="icon-button" title="New search · ⌘T" aria-label="New search tab"></button><button id="saved-tab" role="tab" aria-selected="false"></button></nav>
   <form id="search-form" autocomplete="off"><span id="search-icon"></span><input id="search-input" type="search" placeholder="Search Google Images…" aria-label="Search Google Images" maxlength="6000" autofocus><button id="ai-search-button" type="button" title="AI search · ⌘Enter" aria-label="AI search" aria-keyshortcuts="Meta+Enter" hidden><span class="button-label">AI search</span><span class="ai-shortcut" aria-hidden="true">⌘Enter</span></button><div id="filters"><button id="filter-button" class="icon-button" type="button" aria-label="Filter images" title="Filter images" aria-haspopup="menu" aria-expanded="false" aria-controls="filter-menu"></button><div id="filter-menu" role="menu" aria-label="Image type" hidden><button type="button" role="menuitemradio" data-kind="all" aria-checked="true">All</button><button type="button" role="menuitemradio" data-kind="transparent" aria-checked="false">Transparent</button><button type="button" role="menuitemradio" data-kind="icons" aria-checked="false">Icons</button></div></div></form>
@@ -34,6 +34,32 @@
       <input id="reference-file" type="file" accept="image/*,.avif,.heic,.tiff,.svg" multiple hidden>
     </form>
   </section>
+  <section id="twitter-workspace" class="workspace" aria-label="Social search" hidden>
+    <div class="tab-bar social-tabs"><div id="tweet-tabs" role="tablist" aria-label="Social search tabs"></div><button id="new-tweet-tab" class="icon-button" type="button" aria-label="New social search" title="New social search · ⌘T"></button><span class="social-platform">X</span></div>
+    <form id="tweet-form" autocomplete="off"><span id="tweet-icon" aria-hidden="true"></span><input id="tweet-input" type="search" placeholder="Search X…" aria-label="Search X" maxlength="1000"><button id="tweet-ai-button" type="button" title="AI search · ⌘Enter" aria-label="AI search" aria-keyshortcuts="Meta+Enter" hidden><span class="button-label">AI search</span><span class="ai-shortcut" aria-hidden="true">⌘Enter</span></button><div class="social-filter-wrap"><button id="tweet-filter-button" type="button" class="icon-button" aria-label="Filter social search" title="Filters" aria-expanded="false" aria-controls="tweet-filter-menu"></button>
+      <div id="tweet-filter-menu" hidden>
+        <div class="social-media-filters" role="group" aria-label="Media type"><button type="button" data-media="all" aria-pressed="true">✓ All</button><button type="button" data-media="videos" aria-pressed="false">Videos</button><button type="button" data-media="images" aria-pressed="false">Images</button></div>
+        <label>From account<input id="tweet-from" placeholder="@handle" maxlength="16" autocomplete="off"></label>
+        <div class="social-filter-pair"><label>Min. likes<input id="tweet-min-likes" type="number" min="0" step="1" placeholder="Any"></label><label>Min. views<input id="tweet-min-views" type="number" min="0" step="1" placeholder="Any"></label></div>
+        <div class="social-filter-pair"><label>Since<input id="tweet-since" type="date"></label><label>Until<input id="tweet-until" type="date"></label></div>
+        <label>Sort<select id="tweet-sort" aria-label="Sort tweets"><option value="likes">Most liked</option><option value="retweets">Most reposted</option><option value="views">Most viewed</option><option value="newest">Newest</option><option value="relevance">Relevance</option></select></label>
+        <label class="social-check"><input id="tweet-no-replies" type="checkbox">Exclude replies</label><label class="social-check"><input id="tweet-no-reposts" type="checkbox">Exclude reposts</label>
+        <div class="social-filter-footer"><button id="tweet-reset-filters" type="button">Reset</button><button id="tweet-apply-filters" type="button">Apply</button></div>
+      </div></div></form>
+    <div class="toolbar tweet-toolbar"><code id="tweet-query" class="tweet-query" title="The X search this app ran" hidden></code><span id="tweet-count" aria-live="polite"></span></div>
+    <main id="tweet-content" tabindex="-1"></main>
+  </section>
+  <section id="notes-workspace" class="workspace" aria-label="Notes" hidden>
+    <aside class="notes-pane">
+      <div class="notes-toolbar"><span id="notes-search-icon" aria-hidden="true"></span><input id="notes-search" type="search" placeholder="Search notes…" aria-label="Search notes" maxlength="200" autocomplete="off"><button id="new-note" class="icon-button" type="button" title="New note · ⌘N" aria-label="New note"></button></div>
+      <div id="notes-list" role="listbox" aria-label="Notes"></div>
+    </aside>
+    <div class="note-editor">
+      <input id="note-title" type="text" placeholder="Title" aria-label="Note title" maxlength="200" autocomplete="off" spellcheck="false">
+      <textarea id="note-body" placeholder="Write a note…" aria-label="Note text" maxlength="200000"></textarea>
+      <div class="note-footer"><span id="note-status" aria-live="polite"></span><button id="copy-note" type="button" title="Copy the note text">Copy</button><button id="delete-note" type="button" title="Delete this note">Delete</button></div>
+    </div>
+  </section>
   <div id="toast" role="status" hidden></div>
   <dialog id="preview-dialog"><div class="preview-header"><div><strong id="preview-title"></strong><span id="preview-meta"></span></div><nav id="preview-navigation" aria-label="Image navigation"><button id="previous-image" class="icon-button" aria-label="Previous image" title="Previous image · ←"></button><span id="preview-position" aria-live="polite"></span><button id="next-image" class="icon-button" aria-label="Next image" title="Next image · →"></button></nav><button class="icon-button" id="close-preview" aria-label="Close preview"></button></div><div class="preview-image-wrap"><img id="preview-image" alt=""></div><div id="preview-actions"></div></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title">
@@ -50,6 +76,7 @@
           <label>Serper <span id="serper-state"></span><input type="password" id="serper-key" placeholder="Enter API key" autocomplete="off"></label>
           <label>remove.bg <span id="removebg-state"></span><input type="password" id="removebg-key" placeholder="Enter API key" autocomplete="off"></label>
           <label>AI Gateway <span id="gateway-state"></span><input type="password" id="gateway-key" placeholder="Enter API key" autocomplete="off"></label>
+          <label>Scrape Creators <span id="scrapecreators-state"></span><input type="password" id="scrapecreators-key" placeholder="Enter API key" autocomplete="off"></label>
           <p class="settings-note">Keys are encrypted on this Mac. Leave a field blank to keep its saved key. Background removal uses your remove.bg credits.</p>
         </div>
       </details>
@@ -60,6 +87,7 @@
           <div><dt>New search tab</dt><dd><kbd>⌘T</kbd></dd></div>
           <div><dt>Separate searches</dt><dd><kbd>;</kbd></dd></div>
           <div><dt>AI search</dt><dd><kbd>⌘Enter</kbd></dd></div>
+          <div><dt>New note</dt><dd><kbd>⌘N</kbd></dd></div>
           <div><dt>Hide app</dt><dd><kbd>Esc</kbd></dd></div>
         </dl>
       </details>
@@ -69,5 +97,8 @@
   <script src="search-queries.js"></script>
   <script src="app.js"></script>
   <script src="generator.js"></script>
+  <script src="notes.js"></script>
+  <script src="twitter-query.js"></script>
+  <script src="twitter.js"></script>
 </body>
 </html>

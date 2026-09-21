@@ -93,3 +93,58 @@ body::before{content:"";position:fixed;inset:-28px;background-image:linear-gradi
 
 #clear-generation{position:absolute;right:15px;top:12px;padding:1px 0;background:none;color:#888;font-size:11px;z-index:1}#clear-generation:hover:not(:disabled){color:#eee;text-decoration:underline;text-underline-offset:3px}#clear-generation:disabled{opacity:.35;cursor:default}
 #generation-prompt{padding-right:48px}#reference-list{margin-right:45px}
+
+/* Notes: a list of notes beside a plain editor that saves as you type. */
+#notes-workspace{flex-direction:row}
+.notes-pane{width:236px;flex:none;display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line)}
+.notes-toolbar{display:flex;align-items:center;gap:6px;padding:12px 8px 8px 16px;flex-shrink:0}
+#notes-search-icon{color:var(--muted);display:flex}#notes-search-icon svg{width:15px;height:15px}
+#notes-search{flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--ink);font-size:13px;padding:6px 0}#notes-search::placeholder{color:#737373}#notes-search::-webkit-search-cancel-button{-webkit-appearance:none}#notes-search:focus-visible{outline:none}
+#new-note{color:var(--muted)}#new-note:hover{color:#fff}
+#notes-list{flex:1;min-height:0;overflow:auto;padding:0 8px 12px;scrollbar-width:thin;scrollbar-color:#3b3b3b transparent}
+.note-item{display:flex;flex-direction:column;align-items:stretch;gap:3px;width:100%;text-align:left;padding:9px 10px;border-radius:7px;color:var(--muted)}
+.note-item:hover{background:#222;color:var(--muted)}.note-item.active{background:#2a2a2a;color:var(--ink)}
+.note-item-title{font-size:12.5px;font-weight:500;color:#d6d6d6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.note-item.active .note-item-title{color:#fff}
+.note-item-snippet{font-size:11px;color:#7d7d7d;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.note-item-date{font-size:10px;color:#666;margin-top:2px}
+.notes-empty{padding:30px 12px;text-align:center;color:#666;font-size:12px}
+.note-editor{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
+#note-title{border:0;outline:none;background:transparent;color:var(--ink);font-size:20px;font-weight:550;letter-spacing:-.4px;padding:22px 26px 6px;width:100%}#note-title::placeholder{color:#5f5f5f}#note-title:focus-visible{outline:none}
+#note-body{flex:1;min-height:0;resize:none;border:0;outline:none;background:transparent;color:#e0e0e0;font:inherit;font-size:14px;line-height:1.65;padding:6px 26px 18px;scrollbar-width:thin;scrollbar-color:#3b3b3b transparent}#note-body::placeholder{color:#5f5f5f}#note-body:focus-visible{outline:none}
+.note-footer{display:flex;align-items:center;gap:6px;padding:8px 18px 12px 26px;border-top:1px solid var(--line);flex-shrink:0}
+#note-status{flex:1;font-size:11px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.note-footer button{padding:6px 10px;border-radius:5px;font-size:11px;color:var(--muted)}.note-footer button:hover{background:#2a2a2a;color:#fff}
+#delete-note.armed{background:#4a2a2a;color:#f0b8b0}#delete-note.armed:hover{background:#5a3030;color:#fff}
+@media(max-width:680px){#notes-workspace{flex-direction:column}.notes-pane{width:auto;max-height:190px;border-right:0;border-bottom:1px solid var(--line)}#note-title{padding:16px 18px 4px;font-size:18px}#note-body{padding:4px 18px 14px}.note-footer{padding-left:18px}}
+
+/* X search: a feed of tweets with image and video actions. */
+#tweet-form{margin:21px 24px 0;display:flex;align-items:center;gap:12px;height:46px;flex-shrink:0}#tweet-icon{color:var(--muted);display:flex}#tweet-icon svg{width:22px;height:22px}
+#tweet-input{flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--ink);font-size:19px;letter-spacing:-.4px;padding:9px 0;caret-color:var(--ink)}#tweet-input::placeholder{color:#737373}#tweet-input::-webkit-search-cancel-button{-webkit-appearance:none}#tweet-input:focus-visible{outline:none}
+#tweet-ai-button{display:inline-flex;align-items:center;gap:9px;flex-shrink:0;padding:8px 0;color:#929292;font-size:12px;white-space:nowrap}#tweet-ai-button .ai-shortcut{font-size:11px;color:#666}#tweet-ai-button:hover:not(:disabled){color:#ededed}#tweet-ai-button:hover:not(:disabled) .button-label{text-decoration:underline;text-underline-offset:3px}#tweet-ai-button:disabled{opacity:.6}
+#tweet-sort{border:0;border-radius:5px;background:transparent;color:#999;padding:6px;font:inherit;font-size:11px;cursor:pointer;flex:none}#tweet-sort:hover{background:#292929;color:#ddd}
+.tweet-toolbar{justify-content:space-between;gap:12px}.tweet-query{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:#8a8a8a;background:#202020;border:1px solid #2e2e2e;border-radius:5px;padding:4px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}#tweet-count{font-size:11px;color:var(--faint);white-space:nowrap;margin-left:auto}
+#tweet-content{padding:0 24px 24px;overflow:auto;flex:1;scrollbar-width:thin;scrollbar-color:#3b3b3b transparent;outline:none}
+.tweet-feed{display:flex;flex-direction:column;gap:12px;max-width:760px;margin:0 auto}
+.tweet-card{background:var(--raised);border:1px solid #303030;border-radius:10px;padding:14px 16px;transition:border-color .12s;outline-offset:3px!important}.tweet-card:hover,.tweet-card:focus-within{border-color:#505050}
+.tweet-head{display:flex;align-items:center;gap:10px}.tweet-avatar{width:36px;height:36px;border-radius:50%;background:#2a2a2a;object-fit:cover;flex:none}.tweet-who{display:flex;flex-direction:column;min-width:0;flex:1;gap:1px}.tweet-who strong{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tweet-handle{font-size:11px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tweet-text{margin:10px 0 0;font-size:13.5px;line-height:1.6;color:#e0e0e0;white-space:pre-wrap;word-break:break-word}
+.tweet-media{display:grid;gap:6px;margin-top:12px;grid-template-columns:1fr}.tweet-media.count-2,.tweet-media.count-3,.tweet-media.count-4{grid-template-columns:1fr 1fr}
+.tweet-media-tile{position:relative;border-radius:8px;overflow:hidden;background:#111;border:1px solid #2c2c2c}.tweet-media-stage{display:block;width:100%;padding:0;position:relative;cursor:zoom-in;aspect-ratio:16/9;background:#111}.tweet-media.count-1 .tweet-media-stage{aspect-ratio:auto;max-height:420px}.tweet-media-tile.video .tweet-media-stage,.tweet-media-tile.gif .tweet-media-stage{cursor:pointer}
+.tweet-media-stage img{width:100%;height:100%;object-fit:cover;display:block}.tweet-media.count-1 .tweet-media-stage img{object-fit:contain;max-height:420px}
+.play-badge{position:absolute;left:10px;bottom:10px;display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:5px;background:#000c;color:#fff;font-size:11px}.play-badge svg{width:12px;height:12px;stroke:none}
+.tweet-media-stage .working{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:9px;background:#171717dd;font-size:12px}
+.tweet-media-stage .broken{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--faint);font-size:11px}.tweet-media-stage .broken svg{width:24px;height:24px}.tweet-media.count-1 .tweet-media-stage:has(.broken){aspect-ratio:16/9}
+.tweet-media-actions{position:absolute;right:8px;top:8px;display:flex;gap:4px;opacity:0;transition:opacity .12s}.tweet-media-tile:hover .tweet-media-actions,.tweet-media-tile:focus-within .tweet-media-actions{opacity:1}
+.tweet-media-actions button{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:5px;background:#1c1c1cd9;color:#eee;font-size:11px}.tweet-media-actions button:hover:not(:disabled){background:#3a3a3a}.tweet-media-actions svg{width:13px;height:13px}
+.tweet-stats{display:flex;align-items:center;gap:16px;margin-top:12px;color:var(--faint);font-size:11px}.tweet-stat{display:inline-flex;align-items:center;gap:5px}.tweet-stat svg{width:14px;height:14px}
+.tweet-copy-text{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border-radius:5px;color:var(--muted);font-size:11px}.tweet-copy-text:hover{background:#2a2a2a;color:#fff}.tweet-copy-text svg{width:13px;height:13px}
+#serper-state,#removebg-state,#gateway-state,#scrapecreators-state{float:right;font-size:10px;color:#9cb8a1}
+@media(max-width:680px){#tweet-form{margin-left:18px;margin-right:18px;gap:8px}#tweet-input{font-size:17px}#tweet-content{padding-left:18px;padding-right:18px}.tweet-media-actions{opacity:1}.tweet-stats{gap:10px}}
+
+/* Social searches share the image workspace's tab and grid rhythm. */
+.social-tabs{display:flex;align-items:center;min-height:42px;border-bottom:1px solid #303030;padding:0 14px;gap:4px;flex-shrink:0}
+#tweet-tabs{display:flex;overflow-x:auto;min-width:0;flex:1;scrollbar-width:none;align-items:center}.social-platform{font-size:11px;color:#888;margin:0 10px}
+.social-filter-wrap{position:relative;flex:none}#tweet-filter-button{position:relative}#tweet-filter-button.active:after{content:'';position:absolute;right:4px;top:4px;width:5px;height:5px;background:#d4b5fa;border-radius:50%}
+#tweet-filter-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:15;width:300px;max-height:calc(100vh - 170px);overflow:auto;background:#242424;border:1px solid #3b3b3b;border-radius:10px;box-shadow:0 12px 40px #0008;padding:12px;display:grid;gap:12px}
+#tweet-filter-menu label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:#a0a0a0;min-width:0}#tweet-filter-menu input:not([type=checkbox]),#tweet-filter-menu select{width:100%;min-width:0;color:#eee;background:#1c1c1c;border:1px solid #393939;border-radius:5px;font:inherit;padding:7px;color-scheme:dark}#tweet-filter-menu .social-check{flex-direction:row;align-items:center;gap:8px}.social-filter-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}.social-media-filters{display:grid;gap:2px}.social-media-filters button{text-align:left;padding:7px;border-radius:5px;font-size:12px;color:#bbb}.social-media-filters button:hover,.social-media-filters button[aria-pressed=true]{background:#333;color:white}.social-filter-footer{display:flex;justify-content:space-between}.social-filter-footer button{padding:5px 8px;font-size:12px;color:#ddd}
+.tweet-feed{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));align-items:start;gap:12px;max-width:none}.tweet-card{min-width:0;padding:12px}.tweet-text{font-size:12px;line-height:1.5;max-height:144px;overflow:auto}.tweet-stats{gap:8px;flex-wrap:wrap}.tweet-copy-text{font-size:10px}.tweet-media-stage img{object-fit:contain}.tweet-media.count-1 .tweet-media-stage{aspect-ratio:4/3;max-height:280px}.tweet-media.count-1 .tweet-media-stage img{max-height:280px}.social-discovery-note{font-size:10px;color:#777;margin:12px 0;text-align:center}

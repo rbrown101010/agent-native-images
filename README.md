@@ -1,6 +1,6 @@
 # Agent Native Images
 
-A small desktop launcher for finding images fast. Google Images search through Serper, independent search tabs, native clipboard, Downloads, one-click background removal through remove.bg, and a parallel GPT Image 2 generator through Vercel AI Gateway.
+A small desktop launcher for finding images fast. Google Images search through Serper, independent search tabs, native clipboard, Downloads, one-click background removal through remove.bg, a parallel GPT Image 2 generator through Vercel AI Gateway, X (Twitter) search with tweet image and video downloads through Scrape Creators, and a notes tab for prompts and reminders.
 
 Built with Electron and plain JavaScript. No web server, framework build, account, or hosted backend. The charcoal palette and Geist typography follow Agent Native's visual style.
 
@@ -36,6 +36,7 @@ Built with Electron and plain JavaScript. No web server, framework build, accoun
 | B | Remove background of focused image or preview |
 | Escape | Close preview or hide launcher |
 | ⌘, | Settings |
+| ⌘N | New note |
 
 ## Image generator
 
@@ -50,6 +51,28 @@ Use the image-with-sparkle icon below Search in the left rail. The generator fil
 
 Generation uses `openai/gpt-image-2` by default, configurable with `IMAGE_MODEL`. Prompts and attached references are sent through Vercel AI Gateway and use its credits. Generated images are kept locally; **Save** additionally puts them in Downloads.
 
+## X (Twitter) search
+
+The **Social** (X) icon in the left rail finds tweets through your [Scrape Creators](https://scrapecreators.com/) key and shows each tweet's likes, reposts, replies, views, text, images, and videos.
+
+- **⌘T** or **+** opens an independent Social search tab; **⌘W** closes it. Start another search while earlier tabs load. Semicolon-separated queries open separate tabs, with per-tab filters and results restored on restart.
+- Use the filter icon for **All / Videos / Images**, author, minimum likes/views, Since/Until dates, and excluding replies/reposts. Until is exclusive. Selected filters also apply to **AI search** and cannot be overwritten by its response.
+- Type plain English and press **Enter**. Filters become X search operators deterministically, so `ai agents over 400 likes last week with video` runs as `ai agents min_faves:400 since:2026-09-11 filter:videos`, and the exact query appears under the search box. Understood: minimum likes, reposts, replies, or views (`400+ likes`, `over 1k retweets`, `10k views`), dates (`last 3 days`, `this month`, `yesterday`, `since 2026-09-01`, `in 2025`), `from @handle`, `to @handle`, `with video`, `with images`, `with links`, `no replies`, `no retweets`, `in english`, and `sorted by views`. Operators typed directly (`min_faves:`, `from:`, `since:`, `until:`, `filter:videos`, `-filter:replies`, `lang:`) work as on X, and a pasted tweet URL opens that tweet.
+- **AI search** (⌘Enter) sends a looser description to your AI Gateway model, which writes the query; the same deterministic normalization then runs on its output.
+- Keyword searches use Google (through Scrape Creators) to find tweet URLs and then fetch each tweet from X, so the minimum-like and date filters are checked against real counts. This is discovery of Google-indexed public posts, not an exhaustive native X search. Media and other filters are checked on retrieved posts. When a page has no matches the app loads up to two more pages automatically, and **Load more tweets** continues from there. `from:@handle` reads that account's top tweets directly, which X limits to about 100.
+- Sort by likes, reposts, views, or recency without searching again.
+- Hover an image for **Copy** (a PNG on the clipboard, kept in Saved) or **Save** (Downloads), or click it for a full preview. Hover a video for **Download** (the best MP4 to Downloads) or **Copy**, which puts the MP4 on the clipboard as a file to paste into Finder, Messages, Slack, or a video editor. **Copy text** copies the tweet, and the arrow opens it on X.
+- Each search spends Scrape Creators credits: one per Google page plus one per tweet that is not already cached. Videos over 400 MB fall back to a smaller variant.
+
+## Notes
+
+Use the note icon in the left rail, or press **⌘N** anywhere in the app, to keep short notes beside your images: prompts, hooks, links, and reminders you want at hand later.
+
+- A new note opens with the title focused. Press **Enter** to move into the text. Notes save on their own as you type, and the footer shows when the last save happened.
+- The list on the left shows every note, most recently edited first, with its title or first line and a short excerpt. Click a note to open it, or type in the search box (**⌘L** in Notes) to filter by any word in the title or text.
+- **Copy** puts the note text on the clipboard. **Delete** asks once more before removing a note.
+- Notes are stored in `notes.json` inside the app's local data folder, persist across restarts, and never leave your Mac.
+
 ## Run locally
 
 Requires Node.js 22.12 or later. macOS is the verified platform.
@@ -61,11 +84,11 @@ npm start
 
 For AI search, add an [AI Gateway](https://vercel.com/ai-gateway) key in Settings. The model defaults to `openai/gpt-4.1-nano`; set `AI_MODEL` when launching to override it. Launching once with `AI_GATEWAY_API_KEY` saves that key in encrypted local storage for future launches.
 
-Enter your own [Serper](https://serper.dev/) and [remove.bg](https://www.remove.bg/api) API keys in Settings. Both services may charge for use. Keys are encrypted locally using Electron safeStorage backed by the macOS Keychain. They never go into renderer code or this repository.
+Enter your own [Serper](https://serper.dev/), [remove.bg](https://www.remove.bg/api), and [Scrape Creators](https://scrapecreators.com/) API keys in Settings. Launching once with `SCRAPECREATORS_API_KEY` set stores that key like the Gateway key. These services may charge for use. Keys are encrypted locally using Electron safeStorage backed by the macOS Keychain. They never go into renderer code or this repository.
 
 AI search descriptions go to Vercel AI Gateway. Image searches go to Serper. Source images are fetched from their original host when copied, saved, or processed. Background removal uploads the selected image to remove.bg. If the original returns a web page, blocks downloads, times out, or cannot be decoded, the app retries through its browser session/cache, then tries the displayed preview and thumbnail. Available image bytes are converted to PNG; the success message says “preview quality” when a preview was used. If neither the original nor preview is accessible, refresh the search and try again.
 
-Local data lives in `~/Library/Application Support/Agent Native Images/`. Keep that directory private: it contains your library, search session, image cache, and encrypted credentials.
+Local data lives in `~/Library/Application Support/Agent Native Images/`. Keep that directory private: it contains your library, notes, downloaded tweet videos, search session, image cache, and encrypted credentials.
 
 ## Package a Mac app
 
@@ -82,6 +105,9 @@ npm test
 npm run test:batch
 node test/reuse-desktop.cjs
 node test/generator-desktop.cjs
+node test/notes-desktop.cjs
+node test/twitter-desktop.cjs
+node test/social-tabs-desktop.cjs
 ```
 
 The batch desktop test checks parallel tab creation, card layout, and AI completion/cancellation using mocked providers, without API charges.
@@ -103,6 +129,9 @@ Add `TEST_REMOVE_BG=1` to also test background removal and consume a remove.bg c
 - `image-formats.cjs`: asynchronous format conversion, SVG rasterization, and orientation handling.
 - `image-generation.cjs`: Gateway generation and reference editing requests.
 - `generation-store.cjs`: persistent gallery and bounded parallel job queue.
+- `notes-store.cjs`: serialized note writes with atomic persistence.
+- `twitter.cjs`: Scrape Creators requests, tweet normalization, count-based filtering, AI query planning, and bounded, MP4-validated downloads.
+- `renderer/twitter-query.js`: deterministic plain-English to X operator parser shared by both processes.
 - `library.cjs`: serialized library writes, collision-safe filenames, and Downloads.
 - `preload.cjs`: narrow context-isolated renderer bridge.
 - `renderer/`: the local interface. All remote text is inserted as text, not HTML.

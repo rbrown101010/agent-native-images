@@ -10,5 +10,8 @@ contextBridge.exposeInMainWorld('images', {
   onGenerations: on('generations-changed'),
   search: invoke('search'), planSearches: invoke('plan-searches'), action: invoke('action'), library: invoke('library'), status: invoke('status'), configure: invoke('configure'),
   hide: invoke('hide'), downloads: invoke('downloads'), source: invoke('source'), forget: invoke('forget'), reveal: invoke('reveal'),
+  notes: invoke('notes'), saveNote: invoke('save-note'), removeNote: invoke('remove-note'), copyNote: invoke('copy-note'),
+  searchTweets: invoke('search-tweets'), planTweets: invoke('plan-tweets'), tweetVideo: invoke('tweet-video'),
+  onNotes: on('notes-changed'), onNewNote: on('new-note'),
   onLibrary: on('library-changed'), onFocus: on('focus-search'), onSettings: on('open-settings'), onNewTab: on('new-tab'), onCloseTab: on('close-tab'),
 });

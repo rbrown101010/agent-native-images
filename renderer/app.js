@@ -20,6 +20,7 @@ const paths = {
   check: '<path d="m5 12 4 4L19 6"/>',
   settings: '<path d="M9.7 3h4.6l.6 2.6 2 .9 2.4-.8 2.3 4-1.9 1.8v2.3l1.9 1.8-2.3 4-2.4-.8-2 .9-.6 2.3H9.7l-.6-2.3-2-.9-2.4.8-2.3-4 1.9-1.8v-2.3L2.4 9.7l2.3-4 2.4.8 2-.9L9.7 3Z"/><circle cx="12" cy="12" r="3"/>',
   undo: '<path d="M3 9h11a6 6 0 0 1 0 12M3 9l5-5M3 9l5 5"/>',
+  note: '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h6M9 16h4"/>',
   external: '<path d="M14 3h7v7m0-7L10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/>',
 };
 function icon(name) { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.image}</svg>`; }
@@ -37,7 +38,7 @@ function current() { return tabs.find(tab => tab.id === activeId); }
 function persist() {
   try { localStorage.setItem('image-session', JSON.stringify({ tabs: tabs.map(tab => ({ ...tab, items: tab.items.slice(0, 120), loading: false, planning: false, planToken: '', token: '' })), activeId: activeId === 'saved' ? tabs[0].id : activeId, recent })); } catch {}
 }
-function focusSearch(select = true) { if (activeModule === 'generator') { $('#generation-prompt').focus(); return; } const input = $('#search-input'); input.focus(); if (select) input.select(); }
+function focusSearch(select = true) { if (activeModule === 'generator') { $('#generation-prompt').focus(); return; } if (activeModule === 'notes') { window.notes?.focus(); return; } if (activeModule === 'twitter') { window.twitter?.focus(select); return; } const input = $('#search-input'); input.focus(); if (select) input.select(); }
 function toast(text, error = false) { clearTimeout(toastTimer); const node = $('#toast'); node.textContent = text; node.className = error ? 'error' : ''; node.hidden = false; toastTimer = setTimeout(() => { node.hidden = true; }, error ? 8000 : 2800); }
 function renderTabs() {
   const container = $('#tabs'); container.replaceChildren();
@@ -54,9 +55,11 @@ function renderTabs() {
 }
 function selectModule(module) {
   activeModule = module; closeFilters();
-  $('#search-workspace').hidden = module !== 'search'; $('#generator-workspace').hidden = module !== 'generator';
-  for (const [id, name] of [['search-module', 'search'], ['generate-module', 'generator']]) { const node = $('#' + id); node.classList.toggle('active', module === name); if (module === name) node.setAttribute('aria-current', 'page'); else node.removeAttribute('aria-current'); }
+  $('#search-workspace').hidden = module !== 'search'; $('#generator-workspace').hidden = module !== 'generator'; $('#notes-workspace').hidden = module !== 'notes'; $('#twitter-workspace').hidden = module !== 'twitter';
+  for (const [id, name] of [['search-module', 'search'], ['generate-module', 'generator'], ['notes-module', 'notes'], ['twitter-module', 'twitter']]) { const node = $('#' + id); node.classList.toggle('active', module === name); if (module === name) node.setAttribute('aria-current', 'page'); else node.removeAttribute('aria-current'); }
   if (module === 'generator') window.generator?.refresh();
+  if (module === 'notes') window.notes?.refresh();
+  if (module === 'twitter') window.twitter?.refresh();
   focusSearch(false);
 }
 function selectTab(id) {
@@ -71,8 +74,9 @@ function selectTab(id) {
   render(); $('#content').scrollTop = tab?.scrollTop || 0; focusSearch(); persist();
   $('#tabs .tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
-function newTab() { const tab = freshTab(); tabs.push(tab); selectTab(tab.id); }
+function newTab() { if (activeModule === 'twitter') return window.twitter?.newTab(); const tab = freshTab(); tabs.push(tab); selectTab(tab.id); }
 function closeTab(id = activeId) {
+  if (activeModule === 'twitter') return window.twitter?.closeTab();
   if (id === 'saved') { selectTab(tabs[tabs.length - 1].id); return; }
   const index = tabs.findIndex(tab => tab.id === id); tabs = tabs.filter(tab => tab.id !== id);
   if (!tabs.length) tabs.push(freshTab());
@@ -275,7 +279,7 @@ function setShortcutLabel(shortcut) { return shortcut.replace('CommandOrControl'
 async function openSettings() {
   try {
     const status = await api.status(); $('#shortcut-select').value = status.shortcut; $('#login-checkbox').checked = status.launchAtLogin;
-    for (const [name, configured] of [['serper', status.serper], ['removebg', status.removebg], ['gateway', status.gateway]]) { $(`#${name}-state`).textContent = configured ? 'Connected' : 'Not configured'; $(`#${name}-key`).value = ''; $(`#${name}-key`).placeholder = configured ? 'Saved securely · enter to replace' : 'Enter API key'; }
+    for (const [name, configured] of [['serper', status.serper], ['removebg', status.removebg], ['gateway', status.gateway], ['scrapecreators', status.scrapecreators]]) { $(`#${name}-state`).textContent = configured ? 'Connected' : 'Not configured'; $(`#${name}-key`).value = ''; $(`#${name}-key`).placeholder = configured ? 'Saved securely · enter to replace' : 'Enter API key'; }
     $('#settings-error').textContent = status.shortcutActive ? '' : 'The shortcut is unavailable. Choose another shortcut above.';
     $('#api-settings').open = false; $('#keyboard-settings').open = false;
     $('#shortcut-label').textContent = setShortcutLabel(status.shortcut);
@@ -283,8 +287,8 @@ async function openSettings() {
   } catch (error) { toast(error.message, true); }
 }
 $('#search-icon').innerHTML = icon('search'); $('#new-tab').innerHTML = icon('plus'); $('#settings-button').innerHTML = icon('settings'); $('#close-preview').innerHTML = icon('close'); $('#close-settings').innerHTML = icon('close'); $('#downloads-button').innerHTML = icon('folder') + 'Open folder';
-$('#search-module').innerHTML = icon('search'); $('#generate-module').innerHTML = icon('generate');
-$('#search-module').addEventListener('click', () => selectModule('search')); $('#generate-module').addEventListener('click', () => selectModule('generator'));
+$('#search-module').innerHTML = icon('search'); $('#generate-module').innerHTML = icon('generate'); $('#notes-module').innerHTML = icon('note');
+$('#search-module').addEventListener('click', () => selectModule('search')); $('#generate-module').addEventListener('click', () => selectModule('generator')); $('#notes-module').addEventListener('click', () => selectModule('notes')); $('#twitter-module').addEventListener('click', () => selectModule('twitter'));
 $('#previous-image').innerHTML = icon('left'); $('#next-image').innerHTML = icon('right');
 $('#previous-image').addEventListener('click', () => navigatePreview(-1));
 $('#next-image').addEventListener('click', () => navigatePreview(1));
@@ -333,7 +337,7 @@ $('#ai-search-button').addEventListener('click', () => aiSearch());
 $('#filters').addEventListener('click', event => { const node = event.target.closest('[data-kind]'); if (!node || !current()) return; const tab = current(); const changed = tab.kind !== node.dataset.kind; tab.kind = node.dataset.kind; closeFilters(true); if (changed && tab.draft.trim()) submitSearch(tab); else render(); persist(); });
 $('#settings-form').addEventListener('submit', async event => {
   event.preventDefault(); const submit = $('#settings-form .primary-button'); submit.disabled = true; $('#settings-error').textContent = '';
-  try { const status = await api.configure({ serper: $('#serper-key').value, removebg: $('#removebg-key').value, gateway: $('#gateway-key').value, shortcut: $('#shortcut-select').value, launchAtLogin: $('#login-checkbox').checked }); $('#shortcut-label').textContent = setShortcutLabel(status.shortcut); $('#settings-dialog').close(); $('#serper-key').value = ''; $('#removebg-key').value = ''; $('#gateway-key').value = ''; toast('Settings saved.'); } catch (error) { $('#settings-error').textContent = error.message; } finally { submit.disabled = false; }
+  try { const status = await api.configure({ serper: $('#serper-key').value, removebg: $('#removebg-key').value, gateway: $('#gateway-key').value, scrapecreators: $('#scrapecreators-key').value, shortcut: $('#shortcut-select').value, launchAtLogin: $('#login-checkbox').checked }); $('#shortcut-label').textContent = setShortcutLabel(status.shortcut); $('#settings-dialog').close(); $('#serper-key').value = ''; $('#removebg-key').value = ''; $('#gateway-key').value = ''; $('#scrapecreators-key').value = ''; toast('Settings saved.'); } catch (error) { $('#settings-error').textContent = error.message; } finally { submit.disabled = false; }
 });
 document.addEventListener('keydown', event => {
   if ($('#settings-dialog').open) return;
@@ -342,6 +346,25 @@ document.addEventListener('keydown', event => {
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); navigatePreview(event.key === 'ArrowLeft' ? -1 : 1); return; }
     if (command && ['c', 's'].includes(event.key.toLowerCase())) { event.preventDefault(); perform(event.key.toLowerCase() === 'c' ? 'copy' : 'save', preview.item, preview.tab); }
     if (event.key.toLowerCase() === 'b') { event.preventDefault(); perform('removebg', preview.item, preview.tab); }
+    return;
+  }
+  if (command && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'n') { event.preventDefault(); if (!event.repeat) window.notes?.create(); return; }
+  if (activeModule === 'twitter') {
+    if (command && event.key.toLowerCase() === 't') { event.preventDefault(); if (!event.repeat) window.twitter?.newTab(); return; }
+    if (command && event.key.toLowerCase() === 'w') { event.preventDefault(); window.twitter?.closeTab(); return; }
+    if (event.ctrlKey && event.key === 'Tab') { event.preventDefault(); window.twitter?.nextTab(); return; }
+    if (event.key === 'Escape' && !$('#tweet-filter-menu').hidden) { event.preventDefault(); window.twitter?.closeFilters(); return; }
+    if (event.key === 'Escape') { event.preventDefault(); api.hide(); }
+    if (command && event.key === ',') { event.preventDefault(); openSettings(); }
+    if (command && event.key.toLowerCase() === 'l') { event.preventDefault(); window.twitter?.focus(); }
+    if (command && event.key === 'Enter') { event.preventDefault(); if (!event.repeat) window.twitter?.aiSearch(); }
+    if (event.key === 'ArrowDown' && event.target === $('#tweet-input')) { event.preventDefault(); window.twitter?.focusFirst(); }
+    return;
+  }
+  if (activeModule === 'notes') {
+    if (event.key === 'Escape') { event.preventDefault(); api.hide(); }
+    if (command && event.key === ',') { event.preventDefault(); openSettings(); }
+    if (command && event.key.toLowerCase() === 'l') { event.preventDefault(); window.notes?.search(); }
     return;
   }
   if (activeModule === 'generator') {
@@ -360,7 +383,7 @@ document.addEventListener('keydown', event => {
   if (event.ctrlKey && event.key === 'Tab') { event.preventDefault(); const ids = [...tabs.map(tab => tab.id), 'saved']; selectTab(ids[(ids.indexOf(activeId) + (event.shiftKey ? ids.length - 1 : 1)) % ids.length]); }
   if (event.key === 'ArrowDown' && event.target === $('#search-input')) { event.preventDefault(); $('.image-card')?.focus(); }
 });
-api.onLibrary(() => refreshSaved().catch(error => toast(error.message, true))); api.onFocus(() => { if (!document.querySelector('dialog[open]')) focusSearch(); }); api.onNewTab(newTab); api.onCloseTab(closeTab); api.onSettings(openSettings);
+api.onLibrary(() => refreshSaved().catch(error => toast(error.message, true))); api.onFocus(() => { if (!document.querySelector('dialog[open]')) focusSearch(); }); api.onNewTab(newTab); api.onCloseTab(closeTab); api.onSettings(openSettings); api.onNewNote(() => window.notes?.create());
 window.addEventListener('beforeunload', persist);
 selectTab(activeId);
 refreshSaved().catch(error => toast(error.message, true));

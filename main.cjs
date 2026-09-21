@@ -2,9 +2,12 @@ const { app, BrowserWindow, ipcMain, clipboard, ClipboardItem, nativeImage, glob
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
-const { randomUUID } = require('node:crypto');
-const { Library } = require('./library.cjs');
+const { execFile } = require('node:child_process');
+const { randomUUID, createHash } = require('node:crypto');
+const { Library, titleFor } = require('./library.cjs');
 const { GenerationStore } = require('./generation-store.cjs');
+const { NotesStore } = require('./notes-store.cjs');
+const { searchTweets, planTweetQuery, downloadVideo } = require('./twitter.cjs');
 const { generateImage, IMAGE_MODEL } = require('./image-generation.cjs');
 const { planSearches, DEFAULT_MODEL } = require('./ai-search.cjs');
 const { normalizeImage } = require('./image-formats.cjs');
@@ -16,11 +19,12 @@ const testRoot = process.argv.find(arg => arg.startsWith('--test-data='))?.split
 if (testMode && testRoot) app.setPath('userData', testRoot);
 else app.setPath('userData', path.join(app.getPath('appData'), 'Agent Native Images'));
 protocol.registerSchemesAsPrivileged([{ scheme: 'asset', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
-let window, tray, library, generations, quitting = false, shortcutActive = false;
+let window, tray, library, generations, notes, quitting = false, shortcutActive = false;
 let secrets = {}, preferences = { shortcut: 'CommandOrControl+Shift+Space', launchAtLogin: false };
 const assets = new Map();
 const assetJobs = new Map();
 const removalJobs = new Map();
+const videoJobs = new Map();
 const root = app.getPath('userData');
 const settingsPath = path.join(root, 'settings.json');
 const secretPath = path.join(root, 'credentials.enc');
@@ -144,13 +148,46 @@ async function startGeneration(value) {
   }));
   return generations.add({ prompt: value.prompt, size: value.size, quality: value.quality, references });
 }
+async function cachedVideo(directory) {
+  try { const name = (await fs.readdir(directory)).find(file => file.endsWith('.mp4')); return name ? path.join(directory, name) : ''; } catch { return ''; }
+}
+async function uniqueCopy(source, directory, name, extension) {
+  await fs.mkdir(directory, { recursive: true });
+  for (let attempt = 0; ; attempt++) {
+    const destination = path.join(directory, `${name}${attempt ? ` - ${attempt + 1}` : ''}${extension}`);
+    try { await fs.copyFile(source, destination, fs.constants.COPYFILE_EXCL); return destination; }
+    catch (error) { if (error.code !== 'EEXIST') throw error; }
+  }
+}
+function copyFileToClipboard(file) {
+  // A file reference on the pasteboard pastes as the file itself in Finder, Messages, Slack, and editors.
+  const escaped = file.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return new Promise((resolve, reject) => execFile('osascript', ['-e', `set the clipboard to (POSIX file "${escaped}")`], { timeout: 10000 }, error => error ? reject(new Error('The video was downloaded but could not be placed on the clipboard.')) : resolve()));
+}
+async function tweetVideo({ type, media, title } = {}) {
+  if (!['save', 'copy'].includes(type)) throw new Error('Unknown video action.');
+  const variants = Array.isArray(media?.variants) ? media.variants.filter(variant => typeof variant?.url === 'string').slice(0, 12) : [];
+  if (!variants.length) throw new Error('This video has no downloadable MP4.');
+  const id = createHash('sha1').update(String(media.key || variants[0].url)).digest('hex');
+  const directory = path.join(root, 'videos', id);
+  const name = titleFor(title || 'Tweet video');
+  let file = await cachedVideo(directory);
+  if (!file) {
+    if (!videoJobs.has(id)) videoJobs.set(id, downloadVideo(variants, { publicURL, destination: path.join(directory, `${name}.mp4`) }).finally(() => videoJobs.delete(id)));
+    await videoJobs.get(id);
+    file = await cachedVideo(directory);
+  }
+  if (type === 'copy') { await copyFileToClipboard(file); return { name: path.basename(file, '.mp4'), path: file }; }
+  const destination = await uniqueCopy(file, testMode ? path.join(root, 'Downloads') : app.getPath('downloads'), name, '.mp4');
+  return { name: path.basename(destination), path: destination };
+}
 function status() {
-  return { serper: Boolean(secrets.serper), removebg: Boolean(secrets.removebg), gateway: Boolean(secrets.gateway), aiModel: process.env.AI_MODEL || DEFAULT_MODEL, imageModel: process.env.IMAGE_MODEL || IMAGE_MODEL, ...preferences, shortcutActive, downloads: app.getPath('downloads') };
+  return { serper: Boolean(secrets.serper), removebg: Boolean(secrets.removebg), gateway: Boolean(secrets.gateway), scrapecreators: Boolean(secrets.scrapecreators), aiModel: process.env.AI_MODEL || DEFAULT_MODEL, imageModel: process.env.IMAGE_MODEL || IMAGE_MODEL, ...preferences, shortcutActive, downloads: app.getPath('downloads') };
 }
 async function saveSecrets(value) {
   if (!safeStorage.isEncryptionAvailable()) throw new Error('Keychain encryption is unavailable. Unlock your Mac and try again.');
   const next = { ...secrets };
-  for (const name of ['serper', 'removebg', 'gateway']) if (typeof value[name] === 'string' && value[name].trim()) next[name] = value[name].trim();
+  for (const name of ['serper', 'removebg', 'gateway', 'scrapecreators']) if (typeof value[name] === 'string' && value[name].trim()) next[name] = value[name].trim();
   await fs.writeFile(secretPath + '.tmp', safeStorage.encryptString(JSON.stringify(next)), { mode: 0o600 });
   await fs.rename(secretPath + '.tmp', secretPath);
   secrets = next;
@@ -164,6 +201,7 @@ function show() {
   window.show(); window.focus(); window.webContents.send('focus-search');
 }
 function toggle() { window?.isVisible() && window?.isFocused() ? window.hide() : show(); }
+function newNote() { show(); window?.webContents.send('new-note'); }
 function registerShortcut(shortcut) {
   if (testMode) return;
   if (shortcut === preferences.shortcut && shortcutActive) return;
@@ -174,7 +212,7 @@ function registerShortcut(shortcut) {
   shortcutActive = true; preferences.shortcut = shortcut;
 }
 async function configure(value) {
-  if (value.serper || value.removebg || value.gateway) await saveSecrets(value);
+  if (value.serper || value.removebg || value.gateway || value.scrapecreators) await saveSecrets(value);
   if (value.shortcut) registerShortcut(String(value.shortcut));
   if (typeof value.launchAtLogin === 'boolean') {
     if (!testMode) app.setLoginItemSettings({ openAtLogin: value.launchAtLogin, args: ['--hidden'] });
@@ -191,7 +229,7 @@ function handle(channel, fn) {
   });
 }
 async function start() {
-  await fs.mkdir(root, { recursive: true });
+  await fs.mkdir(path.join(root, 'videos'), { recursive: true });
   library = new Library(root, testMode ? path.join(root, 'Downloads') : app.getPath('downloads'));
   await library.init();
   for (const entry of library.list()) assets.set(entry.id, entry);
@@ -208,8 +246,11 @@ async function start() {
     },
   });
   await generations.init();
+  notes = new NotesStore(root, { changed: () => window?.webContents.send('notes-changed') });
+  await notes.init();
   try { secrets = JSON.parse(safeStorage.decryptString(await fs.readFile(secretPath))); } catch (error) { if (error.code !== 'ENOENT') console.error('Credentials unavailable; re-enter keys in Settings.'); }
   if (process.env.AI_GATEWAY_API_KEY && process.env.AI_GATEWAY_API_KEY !== secrets.gateway) await saveSecrets({ gateway: process.env.AI_GATEWAY_API_KEY });
+  if (process.env.SCRAPECREATORS_API_KEY && process.env.SCRAPECREATORS_API_KEY !== secrets.scrapecreators) await saveSecrets({ scrapecreators: process.env.SCRAPECREATORS_API_KEY });
   try { preferences = { ...preferences, ...JSON.parse(await fs.readFile(settingsPath, 'utf8')) }; } catch {}
   const importAt = process.argv.indexOf('--credentials-file');
   if (importAt >= 0) {
@@ -233,6 +274,11 @@ async function start() {
   handle('search', search); handle('action', action); handle('library', () => library.list());
   handle('plan-searches', prompt => planSearches(prompt, { key: secrets.gateway, model: process.env.AI_MODEL || DEFAULT_MODEL }));
   handle('status', status); handle('configure', configure);
+  handle('notes', () => notes.list()); handle('save-note', value => notes.save(value || {})); handle('remove-note', id => notes.remove(id));
+  handle('search-tweets', value => searchTweets(value?.query, { key: secrets.scrapecreators, page: value?.page }));
+  handle('plan-tweets', value => planTweetQuery(typeof value === 'string' ? value : value?.prompt, { key: secrets.gateway, model: process.env.AI_MODEL || DEFAULT_MODEL, filters: value?.filters }));
+  handle('tweet-video', tweetVideo);
+  handle('copy-note', text => { const value = String(text ?? '').slice(0, 200000); if (!value.trim()) throw new Error('This note is empty.'); clipboard.writeText(value); });
   handle('hide', () => window.hide());
   handle('downloads', () => shell.openPath(testMode ? path.join(root, 'Downloads') : app.getPath('downloads')));
   handle('source', value => shell.openExternal(publicURL(value)));
@@ -242,7 +288,7 @@ async function start() {
   const menu = [
     { label: 'Agent Native Images', submenu: [{ label: 'Show Images', click: show }, { type: 'separator' }, { label: 'Settings…', accelerator: 'CommandOrControl+,', click: () => { show(); window.webContents.send('open-settings'); } }, { type: 'separator' }, { role: 'quit' }] },
     { role: 'editMenu' },
-    { label: 'Window', submenu: [{ label: 'New Search', accelerator: 'CommandOrControl+T', click: () => window.webContents.send('new-tab') }, { label: 'Close Tab', accelerator: 'CommandOrControl+W', click: () => window.webContents.send('close-tab') }, { role: 'minimize' }] },
+    { label: 'Window', submenu: [{ label: 'New Search', accelerator: 'CommandOrControl+T', click: () => window.webContents.send('new-tab') }, { label: 'Close Tab', accelerator: 'CommandOrControl+W', click: () => window.webContents.send('close-tab') }, { type: 'separator' }, { label: 'New Note', accelerator: 'CommandOrControl+N', click: newNote }, { type: 'separator' }, { role: 'minimize' }] },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(menu));
   if (!testMode) {
@@ -250,7 +296,7 @@ async function start() {
     trayImage.setTemplateImage(true);
     tray = new Tray(trayImage);
     tray.setToolTip('Agent Native Images');
-    tray.setContextMenu(Menu.buildFromTemplate([{ label: 'Open Images', click: show }, { label: 'Downloads', click: () => shell.openPath(app.getPath('downloads')) }, { type: 'separator' }, { label: 'Quit', click: () => app.quit() }]));
+    tray.setContextMenu(Menu.buildFromTemplate([{ label: 'Open Images', click: show }, { label: 'New Note', click: newNote }, { label: 'Downloads', click: () => shell.openPath(app.getPath('downloads')) }, { type: 'separator' }, { label: 'Quit', click: () => app.quit() }]));
     tray.on('click', toggle);
   }
   await window.loadFile(path.join(__dirname, 'renderer', 'index.html'));
