@@ -12,6 +12,7 @@ const { generateImage, IMAGE_MODEL } = require('./image-generation.cjs');
 const { planSearches, DEFAULT_MODEL } = require('./ai-search.cjs');
 const { normalizeImage } = require('./image-formats.cjs');
 const { downloadImage } = require('./image-download.cjs');
+const { makeSticker } = require('./sticker.cjs');
 
 app.setName('Agent Native Images');
 const testMode = process.argv.includes('--test-mode');
@@ -98,9 +99,10 @@ async function resolveAsset(item) {
   return assetJobs.get(key);
 }
 async function removeBackground(item) {
-  if (!secrets.removebg) throw new Error('Add your remove.bg API key in Settings.');
   const original = await resolveAsset(item);
-  if (original.cutout) return original;
+  if (original.sticker) return original;
+  if (original.cutout) return storeAsset(await makeSticker(await fs.readFile(imagePath(original.id))), { sourceUrl: original.sourceUrl, source: original.source, title: original.title, domain: original.domain, cutout: true, sticker: true });
+  if (!secrets.removebg) throw new Error('Add your remove.bg API key in Settings.');
   if (!removalJobs.has(original.sourceUrl)) {
     removalJobs.set(original.sourceUrl, (async () => {
       const form = new FormData();
@@ -108,7 +110,7 @@ async function removeBackground(item) {
       form.append('size', 'auto'); form.append('format', 'png');
       const response = await fetch('https://api.remove.bg/v1.0/removebg', { method: 'POST', headers: { 'X-Api-Key': secrets.removebg }, body: form, signal: AbortSignal.timeout(90000) });
       if (!response.ok) await apiError(response, 'remove.bg');
-      return storeAsset(await responseBytes(response), { sourceUrl: original.sourceUrl, source: original.source, title: original.title, domain: original.domain, cutout: true });
+      return storeAsset(await makeSticker(await responseBytes(response)), { sourceUrl: original.sourceUrl, source: original.source, title: original.title, domain: original.domain, cutout: true, sticker: true });
     })().catch(error => { removalJobs.delete(original.sourceUrl); throw error; }));
   }
   return removalJobs.get(original.sourceUrl);

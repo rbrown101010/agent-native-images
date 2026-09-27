@@ -11,7 +11,7 @@ Built with Electron and plain JavaScript. No web server, framework build, accoun
 - Type `monkey; banana; jungle` and press **Enter** to launch each search in a separate tab. Empty fields and repeated queries are skipped. Up to 24 searches per batch.
 - Describe the visuals you need and press **⌘Enter** or click **AI search**. A lightweight GPT-4.1 nano model returns only a semicolon-separated list, which immediately launches as parallel searches (up to 12). Manual searches never call AI.
 - Search all images, transparent images, or icons. Every image fits fully inside its cell without cropping.
-- Hover an image for **Copy**, **Save**, or **Remove BG**. The same actions appear in the full preview.
+- Hover an image for **Copy**, **Save**, or **Remove BG**. The same actions appear in the full preview. **Remove BG** makes a sticker with a small white outline following the subject and a transparent background. The outline is included in copied and saved PNGs.
 - **Copy** places a real PNG image on the native clipboard and adds it to Saved.
 - PNG, JPEG, WebP, AVIF, SVG, GIF, and TIFF are converted to PNG with transparency preserved. SVG icons render at a minimum 1024 pixels on their longest edge; animated formats use the first frame.
 - **Save** writes a PNG to your Downloads folder and adds it to Saved.
