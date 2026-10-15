@@ -303,7 +303,8 @@ async function start() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(menu));
   if (!testMode) {
     const trayImage = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png'));
-    trayImage.setTemplateImage(true);
+    // Keep the brand colors; tray.png is 18 logical pixels with a Retina @2x asset.
+    trayImage.setTemplateImage(false);
     tray = new Tray(trayImage);
     tray.setToolTip('Agent Native Images');
     tray.setContextMenu(Menu.buildFromTemplate([{ label: 'Open Images', click: show }, { label: 'New Note', click: newNote }, { label: 'Downloads', click: () => shell.openPath(app.getPath('downloads')) }, { type: 'separator' }, { label: 'Quit', click: () => app.quit() }]));

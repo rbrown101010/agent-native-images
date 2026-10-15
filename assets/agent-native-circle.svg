@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Agent Native">
+  <defs>
+    <!-- One sweep of the brand ramp across the puck's face: midnight and indigo
+         at the bottom left, through magenta and ember, to peach at the top right. -->
+    <linearGradient id="ink" x1="0.08" y1="0.94" x2="0.94" y2="0.06">
+      <stop offset="0" stop-color="#2A2B6F"/>
+      <stop offset="0.16" stop-color="#3E4199"/>
+      <stop offset="0.45" stop-color="#DA4390"/>
+      <stop offset="0.66" stop-color="#F16F4C"/>
+      <stop offset="0.89" stop-color="#FBC79E"/>
+      <stop offset="1" stop-color="#FEE2CA"/>
+    </linearGradient>
+    <!-- The soft key from the upper left. -->
+    <radialGradient id="sheen" cx="0.33" cy="0.26" r="0.55">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <!-- The face turning away from it, so the disk reads as a solid. -->
+    <radialGradient id="turn" cx="0.36" cy="0.30" r="0.86">
+      <stop offset="0.55" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.22"/>
+    </radialGradient>
+  </defs>
+  <circle cx="256" cy="256" r="236" fill="url(#ink)"/>
+  <circle cx="256" cy="256" r="236" fill="url(#sheen)"/>
+  <circle cx="256" cy="256" r="236" fill="url(#turn)"/>
+</svg>

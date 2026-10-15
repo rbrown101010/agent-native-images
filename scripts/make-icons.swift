@@ -33,4 +33,4 @@ for size in [16, 32, 128, 256, 512] {
     try png(size).write(to: URL(fileURLWithPath: output + "/icon.iconset/icon_\(size)x\(size).png"))
     try png(size * 2).write(to: URL(fileURLWithPath: output + "/icon.iconset/icon_\(size)x\(size)@2x.png"))
 }
-try png(36, tray: true).write(to: URL(fileURLWithPath: output + "/tray.png"))
+// Generate the branded menu bar assets with node scripts/make-tray.cjs.
