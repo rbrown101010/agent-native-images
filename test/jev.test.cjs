@@ -8,7 +8,9 @@ test('Jev request contains decodable image assets, opt-in header, typed rubrics 
  const result = await rankImage(bytes,{title:'logo',width:30,height:100},{key:'test',query:'logo',fetchImpl:async(url,options)=>{
  assert.equal(url,'https://ai-gateway.vercel.sh/typesafe/v1/systemone');
  assert.equal(options.headers['TypeSafe-Danger-Zone-Images'],'true');
- const body=JSON.parse(options.body); const image=body.assets[body.state.picture];
+ const body=JSON.parse(options.body);
+ if (body.questions.imageCheck) return {ok:true,json:async()=>({answers:{imageCheck:{choice:'b'}}})};
+ const image=body.assets[body.state.picture];
  const meta=await sharp(Buffer.from(image.data_base64,'base64')).metadata();
  assert.equal(meta.width,768); assert.equal(meta.height,768); assert.equal(body.state.originalWidth,30);
  return {ok:true,json:async()=>({model:'jev-1.14.0',answers})};
@@ -21,5 +23,10 @@ test('invalid results fail rather than fabricate a score',()=>{
 });
 test('Gateway credit failure is actionable',async()=>{
  const bytes=await sharp({create:{width:300,height:300,channels:3,background:'white'}}).png().toBuffer();
- await assert.rejects(rankImage(bytes,{}, {key:'test',fetchImpl:async()=>({ok:false,status:402})}),/credits/);
+ await assert.rejects(rankImage(bytes,{}, {key:'credit-test',fetchImpl:async()=>({ok:false,status:402})}),/credits/);
+});
+
+test('text-only gateway responses cannot produce visual rankings', async()=>{
+ const {verifyVision}=require('../jev-ranking.cjs');
+ await assert.rejects(verifyVision('no-images','typesafe-ai/jev',async()=>({ok:true,json:async()=>({answers:{imageCheck:{choice:'unavailable'}}})})),/cannot see images/);
 });

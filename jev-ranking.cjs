@@ -16,8 +16,35 @@ function parseRanking(data) {
   }
   return { score: Math.round(scores.relevance.score * .4 + scores.clarity.score * .3 + scores.sticker.score * .3), scores, model: data.model || JEV_MODEL };
 }
+const visionChecks = new Map();
+async function verifyVision(key, model, fetchImpl) {
+  // A successful HTTP response alone does not prove the gateway forwarded assets.
+  const cacheKey = require('node:crypto').createHash('sha256').update(key + model).digest('hex');
+  const cached = visionChecks.get(cacheKey);
+  if (cached && cached.expires > Date.now()) return cached.promise;
+  const promise = (async () => {
+    const refs = [randomUUID(), randomUUID()];
+    const assets = {};
+    for (const [index,color] of ['#ef2020','#2020ef'].entries()) {
+      const bytes = await sharp({ create: { width: 300, height: 300, channels: 3, background: color } }).png().toBuffer();
+      assets[refs[index]] = { type: 'image', format: 'png', data_base64: bytes.toString('base64') };
+    }
+    const response = await fetchImpl('https://ai-gateway.vercel.sh/typesafe/v1/systemone', {
+      method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'TypeSafe-Danger-Zone-Images': 'true' },
+      body: JSON.stringify({ model, state: { first: refs[0], second: refs[1] }, assets,
+        questions: { imageCheck: { type: 'choice', instructions: 'Identify the actual colors of the first and second images. If no images are visible, choose unavailable.', criteria: { a: 'First blue, second red', b: 'First red, second blue', c: 'Both green', unavailable: 'Images are not visible' } } } }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) throw new Error(response.status === 402 ? 'Jev needs AI Gateway credits.' : `Jev image check failed (${response.status}).`);
+    const result = await response.json();
+    if (result.answers?.imageCheck?.choice !== 'b') throw new Error('Jev cannot see images through this Gateway connection yet. Visual ranking is paused; normal image search still works.');
+  })();
+  visionChecks.set(cacheKey, { promise, expires: Date.now() + 300000 });
+  return promise;
+}
 async function rankImage(bytes, item, { key, query, fetchImpl = fetch, model = JEV_MODEL } = {}) {
   if (!key) throw new Error('Add your AI Gateway key in Settings to use Jev mode.');
+  await verifyVision(key, model, fetchImpl);
   const ref = randomUUID();
   // Fixed canvas meets Jev's minimum size without distorting the subject.
   const image = await sharp(bytes).rotate().resize(768, 768, { fit: 'contain', background: '#eeeeee', withoutEnlargement: true }).flatten({ background: '#eeeeee' }).jpeg({ quality: 90 }).toBuffer();
@@ -29,4 +56,4 @@ async function rankImage(bytes, item, { key, query, fetchImpl = fetch, model = J
   if (!response.ok) throw new Error({ 401: 'Jev: check your AI Gateway key in Settings.', 402: 'Jev needs AI Gateway credits. Top up your Vercel balance.', 429: 'Jev is rate-limited. Try again shortly.', 400: 'Gateway rejected Jev image input. Its new multimodal support may not be available through Gateway yet.', 404: 'This Jev model is not available through Gateway yet.' }[response.status] || `Jev ranking failed (${response.status}).`);
   return parseRanking(await response.json());
 }
-module.exports = { rankImage, parseRanking, JEV_MODEL };
+module.exports = { rankImage, parseRanking, verifyVision, JEV_MODEL };
