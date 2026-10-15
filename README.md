@@ -138,3 +138,11 @@ Add `TEST_REMOVE_BG=1` to also test background removal and consume a remove.bg c
 - `scripts/make-icons.swift`: app icon source.
 
 The renderer runs sandboxed with Node disabled, a restrictive content security policy, blocked navigation, and denied permission requests. API keys stay in the main process. Geist is included under its license in `assets/Geist-LICENSE.txt`.
+
+## Jev image ranking (experimental)
+
+Settings has **Jev mode** and **Jev overlay**. Mode waits one second after search results appear, then scores actual images in up to four concurrent requests and animates cards into descending fit order as answers arrive. Scores combine relevance (40%), visual clarity (30%), and suitability as an Excalidraw sticker/icon (30%). Overlay shows fit out of 100 and the sticker question's model-reported confidence when supplied, with dimension scores in its tooltip. Turning mode off restores search order. Reduced motion disables movement. Failed ranking leaves images usable and displays the error.
+
+Image bytes go through Vercel AI Gateway's TypeSafe-compatible endpoint, using `assets` and `TypeSafe-Danger-Zone-Images: true` from [TypeSafe's image docs](https://docs.typesafe.ai/images). Keys stay in the main process. The default model is the catalog-listed `typesafe-ai/jev`; `JEV_MODEL` can override it when Gateway exposes a newer ID. The native provider announced Jev 1.14 (`jev-preview`) on October 14; Gateway's catalog has not yet confirmed that version. Both native Jev 1.13 and 1.14 support the experimental image flag.
+
+Verification: unit tests and desktop tests with a mock provider pass. Live multimodal Gateway verification is pending: the available Gateway key returned HTTP 402 (insufficient credits). Neither image forwarding nor the underlying served version has been verified. Jev mode defaults off. Test with `node test/jev-desktop.cjs`.

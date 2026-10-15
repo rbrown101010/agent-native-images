@@ -66,6 +66,9 @@
     <form id="settings-form">
       <div class="dialog-heading"><h2 id="settings-title">Settings</h2><button type="button" id="close-settings" class="icon-button" aria-label="Close settings"></button></div>
       <div class="settings-general">
+        <label class="setting-row" for="jev-mode"><span>Jev mode</span><input id="jev-mode" type="checkbox" role="switch"></label>
+        <label class="setting-row" for="jev-overlay"><span>Jev overlay</span><input id="jev-overlay" type="checkbox" role="switch"></label>
+        <p class="settings-note">Rank images for sharp, clean board stickers. Overlay shows fit scores and model confidence. Uses AI Gateway credits; image support is experimental.</p>
         <label class="setting-row" for="shortcut-select"><span>Open app</span><select id="shortcut-select"><option value="CommandOrControl+Shift+Space">⌘ Shift Space</option><option value="CommandOrControl+Alt+Space">⌘ Option Space</option><option value="Control+Alt+Space">Control Option Space</option></select></label>
         <label class="setting-row" for="login-checkbox"><span>Open at login</span><input id="login-checkbox" type="checkbox" role="switch"></label>
         <div class="setting-row"><span>Downloads</span><button type="button" id="downloads-button" title="Open Downloads"></button></div>

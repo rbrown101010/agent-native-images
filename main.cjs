@@ -12,6 +12,7 @@ const { generateImage, IMAGE_MODEL } = require('./image-generation.cjs');
 const { planSearches, DEFAULT_MODEL } = require('./ai-search.cjs');
 const { normalizeImage } = require('./image-formats.cjs');
 const { downloadImage } = require('./image-download.cjs');
+const { rankImage } = require('./jev-ranking.cjs');
 const { makeSticker } = require('./sticker.cjs');
 
 app.setName('Agent Native Images');
@@ -21,7 +22,7 @@ if (testMode && testRoot) app.setPath('userData', testRoot);
 else app.setPath('userData', path.join(app.getPath('appData'), 'Agent Native Images'));
 protocol.registerSchemesAsPrivileged([{ scheme: 'asset', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 let window, tray, library, generations, notes, quitting = false, shortcutActive = false;
-let secrets = {}, preferences = { shortcut: 'CommandOrControl+Shift+Space', launchAtLogin: false };
+let secrets = {}, preferences = { shortcut: 'CommandOrControl+Shift+Space', launchAtLogin: false, jevMode: false, jevOverlay: false };
 const assets = new Map();
 const assetJobs = new Map();
 const removalJobs = new Map();
@@ -220,6 +221,7 @@ async function configure(value) {
     if (!testMode) app.setLoginItemSettings({ openAtLogin: value.launchAtLogin, args: ['--hidden'] });
     preferences.launchAtLogin = value.launchAtLogin;
   }
+  for (const name of ['jevMode', 'jevOverlay']) if (typeof value[name] === 'boolean') preferences[name] = value[name];
   await fs.writeFile(settingsPath, JSON.stringify(preferences), { mode: 0o600 });
   return status();
 }
@@ -273,6 +275,12 @@ async function start() {
   handle('generations', () => generations.list());
   handle('generate-image', startGeneration); handle('import-generation', importGeneration);
   handle('retry-generation', id => generations.retry(id)); handle('remove-generation', id => generations.remove(id));
+  handle('rank-image', async ({ item, query }) => {
+    if (!preferences.jevMode) throw new Error('Jev mode is off.');
+    if (!secrets.gateway) throw new Error('Add your AI Gateway key in Settings.');
+    const asset = await resolveAsset(item);
+    return rankImage(await fs.readFile(imagePath(asset.id)), { ...item, evaluatedWidth: asset.width, evaluatedHeight: asset.height, usedPreview: asset.usedPreview }, { query, key: secrets.gateway, model: process.env.JEV_MODEL || undefined });
+  });
   handle('search', search); handle('action', action); handle('library', () => library.list());
   handle('plan-searches', prompt => planSearches(prompt, { key: secrets.gateway, model: process.env.AI_MODEL || DEFAULT_MODEL }));
   handle('status', status); handle('configure', configure);

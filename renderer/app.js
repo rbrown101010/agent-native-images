@@ -30,6 +30,9 @@ function freshTab() { return { id: crypto.randomUUID(), query: '', draft: '', br
 let activeModule = 'search';
 let tabs = [freshTab()], activeId = tabs[0].id, saved = [], savedQuery = '', recent = [], preview = null, toastTimer;
 const busy = new Map();
+let jevMode = false, jevOverlay = false, jevEpoch = 0, jevActive = 0;
+const jevQueue = [];
+const jevCache = new Map();
 try {
   const state = JSON.parse(localStorage.getItem('image-session'));
   if (state?.tabs?.length) { tabs = state.tabs.map(tab => ({ ...tab, browsingSaved: tab.browsingSaved ?? (!tab.query || tab.draft !== tab.query), loading: false, planning: false, planToken: '', error: '', token: '' })); activeId = tabs.some(tab => tab.id === state.activeId) ? state.activeId : tabs[0].id; recent = state.recent || []; }
@@ -123,6 +126,7 @@ async function aiSearch(tab = current()) {
 async function runSearch(tab, more = false) {
   const query = (more ? tab.query : tab.draft).trim();
   if (!query) return focusSearch();
+  tab.jevRun = ''; tab.jevError = '';
   const token = crypto.randomUUID(); tab.token = token; tab.loading = true; tab.error = ''; tab.unread = false;
   if (!more) { tab.browsingSaved = false; tab.query = query; tab.items = []; tab.page = 0; tab.hasMore = false; tab.scrollTop = 0; if (activeId === tab.id) $('#content').scrollTop = 0; }
   recent = [query, ...recent.filter(value => value !== query)].slice(0, 6); render(); persist();
@@ -130,9 +134,9 @@ async function runSearch(tab, more = false) {
     const items = await api.search({ query, page: tab.page + 1, kind: tab.kind });
     if (tab.token !== token || !tabs.includes(tab)) return;
     const existing = new Set(tab.items.map(item => item.sourceUrl));
-    tab.items.push(...items.filter(item => !existing.has(item.sourceUrl))); tab.page++; tab.hasMore = items.length > 0; tab.unread = activeId !== tab.id;
+    tab.items.push(...items.filter(item => !existing.has(item.sourceUrl)).map((item, index) => ({ ...item, searchOrder: tab.items.length + index })));  tab.page++; tab.hasMore = items.length > 0; tab.unread = activeId !== tab.id;
   } catch (error) { if (tab.token === token) tab.error = error.message; }
-  finally { if (tab.token === token) { tab.loading = false; renderTabs(); if (activeId === tab.id) renderContent(); persist(); } }
+  finally { if (tab.token === token) { tab.loading = false; renderTabs(); if (activeId === tab.id) renderContent(); persist(); if (jevMode && !tab.error) startJev(tab); } }
 }
 function emptyState(title, description, image = 'image') {
   const node = element('div', 'empty'); const art = element('div', 'empty-art'); art.innerHTML = icon(image); node.append(art, element('h1', '', title), element('p', '', description)); return node;
@@ -188,6 +192,7 @@ function renderContent() {
     else { empty = element('div', 'empty minimal-empty', tab.planning ? '' : 'search for image'); }
     content.append(empty); return;
   }
+  if (resultsTab?.jevError && jevMode) content.append(element('div', 'inline-error error-text', resultsTab.jevError));
   const grid = element('div', 'grid'); items.forEach((item, index) => grid.append(card(item, resultsTab, index))); content.append(grid);
   if (resultsTab?.hasMore) { const more = button(tab.loading ? 'Loading…' : 'Load more images', null, () => runSearch(tab, true), 'load-more'); more.disabled = tab.loading; content.append(more); }
   content.scrollTop = scroll;
@@ -202,6 +207,7 @@ function card(item, tab, index) {
   let fallback = false;
   img.addEventListener('error', () => { if (item.thumbnailUrl && !fallback && !item.cutout) { fallback = true; img.src = item.thumbnailUrl; } else { img.remove(); const broken = element('span', 'broken'); broken.innerHTML = icon('image'); broken.append(document.createTextNode('Preview unavailable')); stage.append(broken); } });
   stage.append(img);
+  if (tab && jevMode && jevOverlay) stage.append(jevBadge(item));
   if (saved.some(entry => entry.sourceUrl === item.sourceUrl && Boolean(entry.cutout) === Boolean(item.cutout))) { const mark = element('span', 'saved-mark'); mark.innerHTML = icon('check'); mark.title = 'In your saved library'; stage.append(mark); }
   if (working) { const overlay = element('span', 'working'); overlay.innerHTML = '<span class="spinner"></span>'; overlay.append(document.createTextNode(working)); stage.append(overlay); }
   const info = element('div', 'image-info'); const title = element('div', 'image-title', item.name || item.title); title.title = item.name || item.title; info.append(title);
@@ -215,7 +221,7 @@ function card(item, tab, index) {
     if (event.key.toLowerCase() === 'b') { event.preventDefault(); perform('removebg', item, tab); }
     const columns = getComputedStyle(article.parentElement).gridTemplateColumns.split(' ').length;
     const offset = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: columns, ArrowUp: -columns }[event.key];
-    if (offset !== undefined) { event.preventDefault(); document.querySelector(`.image-card[data-index="${index + offset}"]`)?.focus(); }
+    if (offset !== undefined) { event.preventDefault(); document.querySelector(`.image-card[data-index="${Number(article.dataset.index) + offset}"]`)?.focus(); }
   });
   return article;
 }
@@ -278,7 +284,7 @@ async function refreshSaved() { saved = await api.library(); renderTabs(); if (a
 function setShortcutLabel(shortcut) { return shortcut.replace('CommandOrControl', '⌘').replace('Control', '⌃').replace('Shift', '⇧').replace('Alt', '⌥').replaceAll('+', ''); }
 async function openSettings() {
   try {
-    const status = await api.status(); $('#shortcut-select').value = status.shortcut; $('#login-checkbox').checked = status.launchAtLogin;
+    const status = await api.status(); $('#shortcut-select').value = status.shortcut; $('#login-checkbox').checked = status.launchAtLogin; $('#jev-mode').checked = status.jevMode; $('#jev-overlay').checked = status.jevOverlay;
     for (const [name, configured] of [['serper', status.serper], ['removebg', status.removebg], ['gateway', status.gateway], ['scrapecreators', status.scrapecreators]]) { $(`#${name}-state`).textContent = configured ? 'Connected' : 'Not configured'; $(`#${name}-key`).value = ''; $(`#${name}-key`).placeholder = configured ? 'Saved securely · enter to replace' : 'Enter API key'; }
     $('#settings-error').textContent = status.shortcutActive ? '' : 'The shortcut is unavailable. Choose another shortcut above.';
     $('#api-settings').open = false; $('#keyboard-settings').open = false;
@@ -337,7 +343,7 @@ $('#ai-search-button').addEventListener('click', () => aiSearch());
 $('#filters').addEventListener('click', event => { const node = event.target.closest('[data-kind]'); if (!node || !current()) return; const tab = current(); const changed = tab.kind !== node.dataset.kind; tab.kind = node.dataset.kind; closeFilters(true); if (changed && tab.draft.trim()) submitSearch(tab); else render(); persist(); });
 $('#settings-form').addEventListener('submit', async event => {
   event.preventDefault(); const submit = $('#settings-form .primary-button'); submit.disabled = true; $('#settings-error').textContent = '';
-  try { const status = await api.configure({ serper: $('#serper-key').value, removebg: $('#removebg-key').value, gateway: $('#gateway-key').value, scrapecreators: $('#scrapecreators-key').value, shortcut: $('#shortcut-select').value, launchAtLogin: $('#login-checkbox').checked }); $('#shortcut-label').textContent = setShortcutLabel(status.shortcut); $('#settings-dialog').close(); $('#serper-key').value = ''; $('#removebg-key').value = ''; $('#gateway-key').value = ''; $('#scrapecreators-key').value = ''; toast('Settings saved.'); } catch (error) { $('#settings-error').textContent = error.message; } finally { submit.disabled = false; }
+  try { const status = await api.configure({ serper: $('#serper-key').value, removebg: $('#removebg-key').value, gateway: $('#gateway-key').value, scrapecreators: $('#scrapecreators-key').value, shortcut: $('#shortcut-select').value, launchAtLogin: $('#login-checkbox').checked, jevMode: $('#jev-mode').checked, jevOverlay: $('#jev-overlay').checked }); $('#shortcut-label').textContent = setShortcutLabel(status.shortcut); $('#settings-dialog').close(); $('#serper-key').value = ''; $('#removebg-key').value = ''; $('#gateway-key').value = ''; $('#scrapecreators-key').value = ''; applyJevSettings(status); toast('Settings saved.'); } catch (error) { $('#settings-error').textContent = error.message; } finally { submit.disabled = false; }
 });
 document.addEventListener('keydown', event => {
   if ($('#settings-dialog').open) return;
@@ -387,4 +393,81 @@ api.onLibrary(() => refreshSaved().catch(error => toast(error.message, true))); 
 window.addEventListener('beforeunload', persist);
 selectTab(activeId);
 refreshSaved().catch(error => toast(error.message, true));
-api.status().then(status => { $('#shortcut-label').textContent = setShortcutLabel(status.shortcut); if (!status.serper) openSettings(); else if (!status.shortcutActive) toast('Shortcut is in use. Choose another in Settings.', true); }).catch(error => toast(error.message, true));
+api.status().then(status => { applyJevSettings(status); $('#shortcut-label').textContent = setShortcutLabel(status.shortcut); if (!status.serper) openSettings(); else if (!status.shortcutActive) toast('Shortcut is in use. Choose another in Settings.', true); }).catch(error => toast(error.message, true));
+
+function jevBadge(item) {
+  const badge = element('span', 'jev-badge');
+  if (!item.jev) { badge.textContent = item.jevFailed ? 'Jev · unavailable' : 'Jev · pending'; return badge; }
+  const { score, scores } = item.jev;
+  badge.textContent = `Jev ${score}/100`;
+  const confidence = scores.sticker.confidence;
+  if (confidence !== null) badge.append(element('small', '', `${confidence}% sticker confidence`));
+  badge.title = `Relevance ${scores.relevance.score}/100 · Clarity ${scores.clarity.score}/100 · Sticker ${scores.sticker.score}/100. Fit scores are ratings, not probabilities. Confidence is Jev’s reported certainty in its sticker rating. Model: ${item.jev.model}`;
+  return badge;
+}
+function applyJevSettings(status) {
+  const changed = jevMode !== Boolean(status.jevMode);
+  jevMode = Boolean(status.jevMode); jevOverlay = Boolean(status.jevOverlay);
+  if (changed) {
+    jevEpoch++;
+    for (const tab of tabs) {
+      tab.items.forEach((item,index) => { item.searchOrder ??= index; });
+      tab.jevRun = ''; tab.jevError = '';
+      if (!jevMode) tab.items.sort((a,b) => (a.searchOrder ?? 0) - (b.searchOrder ?? 0));
+      else if (tab.items.length && !tab.browsingSaved && !tab.loading) startJev(tab);
+    }
+  }
+  renderContent();
+}
+function drainJev() {
+  while (jevActive < 4 && jevQueue.length) {
+    const job = jevQueue.shift();
+    if (!job.valid()) { job.resolve(null); continue; }
+    jevActive++;
+    job.run().then(job.resolve, job.reject).finally(() => { jevActive--; drainJev(); });
+  }
+}
+function queuedJev(run, valid) { return new Promise((resolve,reject) => { jevQueue.push({run,valid,resolve,reject}); drainJev(); }); }
+async function startJev(tab) {
+  const run = crypto.randomUUID(), epoch = jevEpoch, token = tab.token;
+  tab.jevRun = run;
+  const valid = () => jevMode && jevEpoch === epoch && tab.jevRun === run && tab.token === token && tabs.includes(tab) && !tab.jevError;
+  // Let the original grid settle before any model-driven moves.
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  if (!valid()) return;
+  const pending = tab.items.filter(item => !item.jev);
+  await Promise.all(pending.map(async item => {
+    const cacheKey = JSON.stringify([tab.query,item.sourceUrl]);
+    try {
+      const result = jevCache.get(cacheKey) || await queuedJev(() => api.rankImage({item,query:tab.query}), valid);
+      if (!valid() || !result) return;
+      jevCache.set(cacheKey, result); if (jevCache.size > 400) jevCache.delete(jevCache.keys().next().value);
+      item.jev = result; item.jevFailed = false;
+      tab.items.sort((a,b) => (b.jev?.score ?? -1) - (a.jev?.score ?? -1) || (a.searchOrder ?? 0) - (b.searchOrder ?? 0));
+      if (activeId === tab.id && !tab.browsingSaved) animateJev(tab);
+    } catch (error) {
+      if (!valid()) return;
+      item.jevFailed = true; tab.jevError = error.message;
+      // Stop queued requests on provider failure, retain usable search results.
+      if (activeId === tab.id) renderContent();
+    }
+  }));
+  if (tab.jevRun === run) { tab.jevRun = ''; persist(); }
+}
+function animateJev(tab) {
+  const grid = $('#content .grid'); if (!grid || grid.classList.contains('skeleton')) return;
+  const nodes = new Map([...grid.children].map(node => [node.dataset.key,node]));
+  const positions = new Map([...nodes].map(([key,node]) => [key,node.getBoundingClientRect()]));
+  for (const [index,item] of tab.items.entries()) {
+    const node = nodes.get(itemKey(item)); if (!node) continue;
+    node.getAnimations().forEach(animation => animation.cancel());
+    node.dataset.index = index; grid.append(node);
+    node.querySelector('.jev-badge')?.remove();
+    if (jevOverlay) node.querySelector('.image-stage').append(jevBadge(item));
+  }
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (const [key,node] of nodes) {
+    const old = positions.get(key), next = node.getBoundingClientRect();
+    if (old.x !== next.x || old.y !== next.y) node.animate([{ transform: `translate(${old.x-next.x}px,${old.y-next.y}px)` }, { transform: 'translate(0,0)' }], { duration: 240, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  }
+}

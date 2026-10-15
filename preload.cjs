@@ -8,7 +8,7 @@ const on = channel => callback => { const listener = () => callback(); ipcRender
 contextBridge.exposeInMainWorld('images', {
   generations: invoke('generations'), generateImage: invoke('generate-image'), importGeneration: invoke('import-generation'), retryGeneration: invoke('retry-generation'), removeGeneration: invoke('remove-generation'),
   onGenerations: on('generations-changed'),
-  search: invoke('search'), planSearches: invoke('plan-searches'), action: invoke('action'), library: invoke('library'), status: invoke('status'), configure: invoke('configure'),
+  rankImage: invoke('rank-image'), search: invoke('search'), planSearches: invoke('plan-searches'), action: invoke('action'), library: invoke('library'), status: invoke('status'), configure: invoke('configure'),
   hide: invoke('hide'), downloads: invoke('downloads'), source: invoke('source'), forget: invoke('forget'), reveal: invoke('reveal'),
   notes: invoke('notes'), saveNote: invoke('save-note'), removeNote: invoke('remove-note'), copyNote: invoke('copy-note'),
   searchTweets: invoke('search-tweets'), planTweets: invoke('plan-tweets'), tweetVideo: invoke('tweet-video'),
